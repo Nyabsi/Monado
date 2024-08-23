@@ -10,10 +10,14 @@
 
 #include "ogl/ogl_api.h"
 
+#include "os/os_time.h"
 #include "util/u_misc.h"
 #include "util/u_system.h"
 
 #include "sdl_internal.hpp"
+#include "xrt/xrt_results.h"
+#include "xrt/xrt_session.h"
+#include <SDL_events.h>
 
 
 void
@@ -108,10 +112,46 @@ sdl_program_plus_render(struct sdl_program_plus *spp_ptr)
 	// Make context current
 	sdl_make_current(&spp);
 
+	bool loss_pending = false;
+
 	// Flush the events.
 	SDL_Event e = {0};
 	while (SDL_PollEvent(&e)) {
-		// Nothing for now.
+		switch (e.type) {
+		case SDL_WINDOWEVENT: {
+			switch (e.window.event) {
+			case SDL_WINDOWEVENT_CLOSE: loss_pending = true; break;
+			default: break;
+			}
+			break;
+		}
+		case SDL_QUIT: loss_pending = true; break;
+		default:
+			// Nothing else for now.
+			break;
+		}
+	}
+	if (loss_pending) {
+		{
+			union xrt_session_event event {};
+			event.loss_pending =
+			    xrt_session_event_loss_pending{XRT_SESSION_EVENT_LOSS_PENDING, os_monotonic_get_ns()};
+			U_LOG_I("Pushing session loss pending event");
+			xrt_result_t xret = xrt_session_event_sink_push(&spp.usys->broadcast, &event);
+			if (xret != XRT_SUCCESS) {
+				U_LOG_W("Failed to push session loss pending event");
+			}
+		}
+
+		{
+			union xrt_session_event event {};
+			event.lost = xrt_session_event_lost{XRT_SESSION_EVENT_LOST};
+			U_LOG_I("Pushing session lost event");
+			xrt_result_t xret = xrt_session_event_sink_push(&spp.usys->broadcast, &event);
+			if (xret != XRT_SUCCESS) {
+				U_LOG_W("Failed to push session lost event");
+			}
+		}
 	}
 
 	if (spp.c.base.layer_accum.layer_count == 0) {
