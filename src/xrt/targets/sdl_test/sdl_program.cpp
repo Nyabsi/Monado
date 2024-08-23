@@ -1,15 +1,17 @@
-﻿// Copyright 2020-2022, Collabora, Ltd.
+// Copyright 2020-2024, Collabora, Ltd.
 // SPDX-License-Identifier: BSL-1.0
 /*!
  * @file
  * @brief  C++ program part for the SDL test.
  * @author Jakob Bornecrantz <jakob@collabora.com>
+ * @author Rylie Pavlik <rylie.pavlik@collabora.com>
  * @ingroup sdl_test
  */
 
 #include "ogl/ogl_api.h"
 
 #include "util/u_misc.h"
+#include "util/u_system.h"
 
 #include "sdl_internal.hpp"
 
@@ -93,7 +95,7 @@ sdl_program_plus_create()
 	sdl_system_init(&spp);
 	sdl_device_init(&spp);
 	sdl_system_devices_init(&spp);
-	sdl_compositor_init(&spp); // Needs the window.
+	sdl_compositor_init(&spp, &spp.usys->broadcast); // Needs the window.
 
 	return &spp;
 }
