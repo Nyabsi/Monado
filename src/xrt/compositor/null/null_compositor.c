@@ -514,7 +514,9 @@ null_compositor_destroy(struct xrt_compositor *xc)
  */
 
 xrt_result_t
-null_compositor_create_system(struct xrt_device *xdev, struct xrt_system_compositor **out_xsysc)
+null_compositor_create_system(struct xrt_device *xdev,
+                              struct xrt_session_event_sink *xses,
+                              struct xrt_system_compositor **out_xsysc)
 {
 	struct null_compositor *c = U_TYPED_CALLOC(struct null_compositor);
 
@@ -532,6 +534,8 @@ null_compositor_create_system(struct xrt_device *xdev, struct xrt_system_composi
 	c->frame.rendering.id = -1;
 	c->settings.frame_interval_ns = U_TIME_1S_IN_NS / 20; // 20 FPS
 	c->xdev = xdev;
+
+	(void)xses;
 
 	NULL_DEBUG(c, "Doing init %p", (void *)c);
 

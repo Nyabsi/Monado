@@ -24,6 +24,10 @@
 #include "main/comp_main_interface.h"
 #endif
 
+#ifdef XRT_MODULE_COMPOSITOR_NULL
+#include "null/null_interfaces.h"
+#endif
+
 #include "target_instance_parts.h"
 
 #include <assert.h>
@@ -39,9 +43,6 @@
 #endif
 
 DEBUG_GET_ONCE_BOOL_OPTION(use_null, "XRT_COMPOSITOR_NULL", USE_NULL_DEFAULT)
-
-xrt_result_t
-null_compositor_create_system(struct xrt_device *xdev, struct xrt_system_compositor **out_xsysc);
 
 
 
@@ -98,7 +99,7 @@ t_instance_create_system(struct xrt_instance *xinst,
 
 #ifdef XRT_MODULE_COMPOSITOR_NULL
 	if (use_null) {
-		xret = null_compositor_create_system(head, &xsysc);
+		xret = null_compositor_create_system(head, &usys->broadcast, &xsysc);
 	}
 #else
 	if (use_null) {
