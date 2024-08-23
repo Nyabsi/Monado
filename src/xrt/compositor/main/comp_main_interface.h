@@ -29,12 +29,14 @@ extern "C" {
  * @relates xrt_system_compositor
  *
  * @param xdev The head device
+ * @param xses Session event sink, for broadcasting events.
  * @param ctf A compositor target factory to force the output device, must remain valid for the lifetime of the
  * compositor. If NULL, factory is automatically selected
  * @param out_xsysc The output compositor
  */
 xrt_result_t
 comp_main_create_system_compositor(struct xrt_device *xdev,
+                                   struct xrt_session_event_sink *xses,
                                    const struct comp_target_factory *ctf,
                                    struct xrt_system_compositor **out_xsysc);
 
