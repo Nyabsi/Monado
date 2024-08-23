@@ -540,14 +540,12 @@ sdl_compositor_init(struct sdl_program *sp, struct xrt_session_event_sink *xses)
 	SC_DEBUG(c, "Doing init %p", (void *)c);
 
 	// Do this as early as possible
-	comp_base_init(&c->base);
+	comp_base_init(&c->base, xses);
+
 
 	// Override some comp_base functions.
 	iface->create_swapchain = sdl_swapchain_create;
 	iface->import_swapchain = sdl_swapchain_import;
-
-	// Unused for the moment
-	(void)xses;
 
 	/*
 	 * Main init sequence.

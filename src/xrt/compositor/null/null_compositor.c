@@ -535,8 +535,6 @@ null_compositor_create_system(struct xrt_device *xdev,
 	c->settings.frame_interval_ns = U_TIME_1S_IN_NS / 20; // 20 FPS
 	c->xdev = xdev;
 
-	(void)xses;
-
 	NULL_DEBUG(c, "Doing init %p", (void *)c);
 
 	NULL_INFO(c,
@@ -551,7 +549,7 @@ null_compositor_create_system(struct xrt_device *xdev,
 	          "################################################################################");
 
 	// Do this as early as possible
-	comp_base_init(&c->base);
+	comp_base_init(&c->base, xses);
 
 
 	/*

@@ -213,7 +213,7 @@ base_wait_frame(struct xrt_compositor *xc,
  */
 
 void
-comp_base_init(struct comp_base *cb)
+comp_base_init(struct comp_base *cb, struct xrt_session_event_sink *xses)
 {
 	struct xrt_compositor *iface = &cb->base.base;
 	iface->get_swapchain_create_properties = base_get_swapchain_create_properties;
@@ -234,6 +234,8 @@ comp_base_init(struct comp_base *cb)
 	u_threading_stack_init(&cb->cscs.destroy_swapchains);
 
 	os_precise_sleeper_init(&cb->sleeper);
+
+	cb->xses = xses;
 }
 
 void
@@ -242,4 +244,6 @@ comp_base_fini(struct comp_base *cb)
 	os_precise_sleeper_deinit(&cb->sleeper);
 
 	u_threading_stack_fini(&cb->cscs.destroy_swapchains);
+
+	cb->xses = NULL;
 }

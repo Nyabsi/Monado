@@ -84,6 +84,9 @@ struct comp_base
 
 	//! Parameters for a single frame.
 	struct comp_frame_params frame_params;
+
+	//! Reference to event sink
+	struct xrt_session_event_sink *xses;
 };
 
 
@@ -121,7 +124,7 @@ comp_base(struct xrt_compositor *xc)
  * @protected @memberof comp_base
  */
 void
-comp_base_init(struct comp_base *cb);
+comp_base_init(struct comp_base *cb, struct xrt_session_event_sink *xses);
 
 /*!
  * De-initialises all structs, except @ref vk_bundle.

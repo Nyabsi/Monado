@@ -999,8 +999,6 @@ comp_main_create_system_compositor(struct xrt_device *xdev,
 	c->frame.rendering.id = -1;
 	c->xdev = xdev;
 
-	(void)xses;
-
 	COMP_DEBUG(c, "Doing init %p", (void *)c);
 
 	if (xdev->hmd->view_count == 0) {
@@ -1009,7 +1007,7 @@ comp_main_create_system_compositor(struct xrt_device *xdev,
 	}
 
 	// Do this as early as possible.
-	comp_base_init(&c->base);
+	comp_base_init(&c->base, xses);
 
 	// Init the settings to default.
 	comp_settings_init(&c->settings, xdev);
