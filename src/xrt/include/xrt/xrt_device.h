@@ -451,13 +451,13 @@ struct xrt_device
 	 *                         (Caution: Even if you have eye tracking, you
 	 *                         won't use eye orientation here!)
 	 */
-	void (*get_view_poses)(struct xrt_device *xdev,
-	                       const struct xrt_vec3 *default_eye_relation,
-	                       int64_t at_timestamp_ns,
-	                       uint32_t view_count,
-	                       struct xrt_space_relation *out_head_relation,
-	                       struct xrt_fov *out_fovs,
-	                       struct xrt_pose *out_poses);
+	xrt_result_t (*get_view_poses)(struct xrt_device *xdev,
+	                               const struct xrt_vec3 *default_eye_relation,
+	                               int64_t at_timestamp_ns,
+	                               uint32_t view_count,
+	                               struct xrt_space_relation *out_head_relation,
+	                               struct xrt_fov *out_fovs,
+	                               struct xrt_pose *out_poses);
 
 	/**
 	 * Compute the distortion at a single point.
@@ -669,7 +669,7 @@ xrt_device_set_output(struct xrt_device *xdev, enum xrt_output_name name, const 
  * @copydoc xrt_device::get_view_poses
  * @public @memberof xrt_device
  */
-static inline void
+static inline xrt_result_t
 xrt_device_get_view_poses(struct xrt_device *xdev,
                           const struct xrt_vec3 *default_eye_relation,
                           int64_t at_timestamp_ns,
@@ -678,8 +678,8 @@ xrt_device_get_view_poses(struct xrt_device *xdev,
                           struct xrt_fov *out_fovs,
                           struct xrt_pose *out_poses)
 {
-	xdev->get_view_poses(xdev, default_eye_relation, at_timestamp_ns, view_count, out_head_relation, out_fovs,
-	                     out_poses);
+	return xdev->get_view_poses(xdev, default_eye_relation, at_timestamp_ns, view_count, out_head_relation,
+	                            out_fovs, out_poses);
 }
 
 /*!
