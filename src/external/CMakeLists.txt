@@ -211,3 +211,9 @@ add_library(xrt-external-vdf INTERFACE)
 target_include_directories(
 	xrt-external-vdf SYSTEM INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/valve-file-vdf
 	)
+
+# Volk
+add_library(xrt-external-volk STATIC volk/volk.c)
+target_include_directories(
+	xrt-external-volk SYSTEM PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/volk
+	)
