@@ -1,4 +1,5 @@
 // Copyright 2023, Collabora, Ltd.
+// Copyright 2024-2025, NVIDIA CORPORATION.
 // SPDX-License-Identifier: BSL-1.0
 /*!
  * @file
@@ -91,12 +92,8 @@ destroy(struct xrt_system *xsys)
 {
 	struct u_system *usys = u_system(xsys);
 
-	if (usys->sessions.count > 0) {
-		U_LOG_E("Number of sessions not zero, things will crash!");
-		free(usys->sessions.pairs);
-		usys->sessions.pairs = NULL;
-		usys->sessions.count = 0;
-	}
+	// Use shared fini function.
+	u_system_fini(usys);
 
 	free(usys);
 }
@@ -113,9 +110,18 @@ u_system_create(void)
 {
 	struct u_system *usys = U_TYPED_CALLOC(struct u_system);
 
+	// Use init function, then add the common destroy function.
+	u_system_init(usys, destroy);
+
+	return usys;
+}
+
+void
+u_system_init(struct u_system *usys, void (*destroy_fn)(struct xrt_system *))
+{
 	// xrt_system fields.
 	usys->base.create_session = create_session;
-	usys->base.destroy = destroy;
+	usys->base.destroy = destroy_fn;
 
 	// xrt_session_event_sink fields.
 	usys->broadcast.push_event = push_event;
@@ -123,8 +129,21 @@ u_system_create(void)
 	// u_system fields.
 	XRT_MAYBE_UNUSED int ret = os_mutex_init(&usys->sessions.mutex);
 	assert(ret == 0);
+}
 
-	return usys;
+void
+u_system_fini(struct u_system *usys)
+{
+	// Just in case, should never happen.
+	if (usys->sessions.count > 0) {
+		U_LOG_E("Number of sessions not zero, things will crash!");
+		free(usys->sessions.pairs);
+		usys->sessions.pairs = NULL;
+		usys->sessions.count = 0;
+	}
+
+	// Mutex needs to be destroyed.
+	os_mutex_destroy(&usys->sessions.mutex);
 }
 
 void
