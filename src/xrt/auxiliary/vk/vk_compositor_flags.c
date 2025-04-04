@@ -106,27 +106,6 @@ vk_csci_get_barrier_access_mask(enum xrt_swapchain_usage_bits bits)
 	return result;
 }
 
-
-
-VkImageLayout
-vk_csci_get_barrier_optimal_layout(VkFormat format)
-{
-	// clang-format off
-#define CASE_COLOR(FORMAT) case VK_FORMAT_##FORMAT: return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-#define CASE_DS(FORMAT) case VK_FORMAT_##FORMAT: return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-	// clang-format on
-
-	switch (format) {
-		VK_CSCI_FORMATS(CASE_COLOR, CASE_DS, CASE_DS, CASE_DS)
-	default: //
-		assert(false && !"Format not supported!");
-		return VK_IMAGE_LAYOUT_UNDEFINED;
-	}
-
-#undef CASE_COLOR
-#undef CASE_DS
-}
-
 VkImageAspectFlags
 vk_csci_get_barrier_aspect_mask(VkFormat format)
 {

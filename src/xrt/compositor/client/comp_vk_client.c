@@ -687,7 +687,12 @@ client_vk_swapchain_create(struct xrt_compositor *xc,
 	struct xrt_swapchain *xsc = &xscn->base;
 
 	VkAccessFlags barrier_access_mask = vk_csci_get_barrier_access_mask(xinfo.bits);
-	VkImageLayout barrier_optimal_layout = vk_csci_get_barrier_optimal_layout(xinfo.format);
+	VkImageLayout barrier_optimal_layout = VK_IMAGE_LAYOUT_GENERAL;
+#if defined(VK_KHR_synchronization2)
+	if (vk->features.synchronization_2) {
+		barrier_optimal_layout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR;
+	}
+#endif
 	VkImageAspectFlags barrier_aspect_mask = vk_csci_get_barrier_aspect_mask(xinfo.format);
 
 	struct client_vk_swapchain *sc = U_TYPED_CALLOC(struct client_vk_swapchain);

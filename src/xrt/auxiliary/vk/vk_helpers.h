@@ -1487,15 +1487,6 @@ VkAccessFlags
 vk_csci_get_barrier_access_mask(enum xrt_swapchain_usage_bits bits);
 
 /*!
- * Return the optimal layout for this format, this is the layout as given to the
- * app so is bound to the OpenXR spec.
- *
- * CSCI = Compositor SwapChain Images.
- */
-VkImageLayout
-vk_csci_get_barrier_optimal_layout(VkFormat format);
-
-/*!
  * Return the barrier aspect mask for this format, this is intended for the
  * barriers that flush the data out before and after transfers between the
  * application and compositor.
