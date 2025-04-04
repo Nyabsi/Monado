@@ -34,6 +34,7 @@ typedef enum op_mode
 	MODE_SET_PRIMARY,
 	MODE_SET_FOCUSED,
 	MODE_TOGGLE_IO,
+	MODE_SUSPEND_DEVICE,
 } op_mode_t;
 
 int
@@ -131,6 +132,17 @@ toggle_io(mnd_root_t *root, int client_index)
 }
 
 int
+suspend_device(mnd_root_t *root, int device_index)
+{
+	mnd_result_t mret = mnd_root_suspend_device(root, device_index);
+	if (mret != MND_SUCCESS) {
+		PE("Failed to suspend device for device index %d.\n", device_index);
+		return 1;
+	}
+	return 0;
+}
+
+int
 main(int argc, char *argv[])
 {
 	op_mode_t op_mode = MODE_GET;
@@ -140,8 +152,13 @@ main(int argc, char *argv[])
 	int s_val = 0;
 
 	opterr = 0;
-	while ((c = getopt(argc, argv, "p:f:i:")) != -1) {
+	while ((c = getopt(argc, argv, "x:p:f:i:")) != -1) {
 		switch (c) {
+		case 'x':
+			s_val = atoi(optarg);
+			CHECK_ID_EXIT(s_val);
+			op_mode = MODE_SUSPEND_DEVICE;
+			break;
 		case 'p':
 			s_val = atoi(optarg);
 			CHECK_ID_EXIT(s_val);
@@ -165,6 +182,7 @@ main(int argc, char *argv[])
 				PE("    -f <index>: Set focused client\n");
 				PE("    -p <index>: Set primary client\n");
 				PE("    -i <index>: Toggle whether client receives input\n");
+				PE("    -x <index>: Suspend device\n");
 			} else {
 				PE("Option `\\x%x' unknown.\n", optopt);
 			}
@@ -193,6 +211,7 @@ main(int argc, char *argv[])
 	case MODE_SET_PRIMARY: exit(set_primary(root, s_val)); break;
 	case MODE_SET_FOCUSED: exit(set_focused(root, s_val)); break;
 	case MODE_TOGGLE_IO: exit(toggle_io(root, s_val)); break;
+	case MODE_SUSPEND_DEVICE: exit(suspend_device(root, s_val)); break;
 	default: P("Unrecognised operation mode.\n"); exit(1);
 	}
 

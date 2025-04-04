@@ -145,6 +145,7 @@ struct ipc_shared_device
 	bool form_factor_check_supported;
 	bool stage_supported;
 	bool battery_status_supported;
+	bool suspend_supported;
 };
 
 static_assert(sizeof(struct ipc_shared_device) == 560,

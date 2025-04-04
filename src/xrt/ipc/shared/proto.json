@@ -536,6 +536,13 @@
 			{"name": "charging", "type": "bool"},
 			{"name": "charge", "type": "float"}
 		]
+	},
+
+	"device_suspend": {
+		"in": [
+			{"name": "id", "type": "uint32_t"}
+		],
+		"out": []
 	}
 
 }

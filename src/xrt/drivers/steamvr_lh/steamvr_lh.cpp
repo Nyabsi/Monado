@@ -11,6 +11,7 @@
 #include <dlfcn.h>
 #include <memory>
 #include <cmath>
+#include <string>
 #include <unordered_map>
 #include <string_view>
 #include <filesystem>
@@ -35,6 +36,8 @@ namespace {
 
 DEBUG_GET_ONCE_LOG_OPTION(lh_log, "LIGHTHOUSE_LOG", U_LOGGING_INFO)
 DEBUG_GET_ONCE_BOOL_OPTION(lh_load_slimevr, "LH_LOAD_SLIMEVR", false)
+DEBUG_GET_ONCE_BOOL_OPTION(lh_discover_wait_forever, "LH_DISCOVER_WAIT_FOREVER", false)
+// Wait forever on all connected dongles to add devs
 DEBUG_GET_ONCE_NUM_OPTION(lh_discover_wait_ms, "LH_DISCOVER_WAIT_MS", 3000)
 
 static constexpr size_t MAX_CONTROLLERS = 16;
@@ -113,12 +116,16 @@ Context::create(const std::string &steam_install,
 
 Context::Context(const std::string &steam_install, const std::string &steamvr_install, u_logging_level level)
     : settings(steam_install, steamvr_install), resources(level, steamvr_install), log_level(level)
-{}
+{
+	console = new lighthouse_console(steamvr_install + "/tools/lighthouse/bin/linux64/lighthouse_console");
+}
 
 Context::~Context()
 {
 	for (vr::IServerTrackedDeviceProvider *const &provider : providers)
 		provider->Cleanup();
+
+	delete svrs->ctx->console;
 }
 
 /***** IVRDriverContext methods *****/
@@ -806,19 +813,55 @@ steamvr_lh_create_devices(struct xrt_system_devices **out_xsysd)
 	if (svrs->ctx == nullptr)
 		return xrt_result::XRT_ERROR_DEVICE_CREATION_FAILED;
 
+	// Do not use list_paired_dongles here it will not work as desired
+	std::vector<std::string> connected_dongles = svrs->ctx->console->list_connected_dongles();
+
+	if (connected_dongles.empty()) {
+		U_LOG_IFL_W(level, "No connected dongles found - continuing without waiting for specific devices");
+	} else {
+		U_LOG_IFL_I(level, "Found %zu connected dongles, waiting for their devices to connect...",
+		            connected_dongles.size());
+		for (const auto &dongle : connected_dongles) {
+			U_LOG_IFL_D(level, "Expected dongle: %s", dongle.c_str());
+		}
+	}
+
 	U_LOG_IFL_I(level, "Lighthouse initialization complete, giving time to setup connected devices...");
 	// RunFrame needs to be called to detect controllers
 	using namespace std::chrono_literals;
-	auto end_time = std::chrono::steady_clock::now() + 1ms * debug_get_num_option_lh_discover_wait_ms();
+	const auto start_time = std::chrono::steady_clock::now();
+	const auto timeout = 1ms * debug_get_num_option_lh_discover_wait_ms();
+	const bool wait_forever = debug_get_bool_option_lh_discover_wait_forever();
+
+	// Keep running frames until all devices found or timeout (if not waiting forever)
 	while (true) {
 		svrs->ctx->run_frame();
-		auto cur_time = std::chrono::steady_clock::now();
-		if (cur_time > end_time) {
+
+		// Check if we've found all connected dongles
+		bool all_found = true;
+		for (const auto &dongle : connected_dongles) {
+			if (svrs->ctx->active_dongles.find(dongle) == svrs->ctx->active_dongles.end()) {
+				all_found = false;
+				break;
+			}
+		}
+
+		if (all_found && !connected_dongles.empty()) {
+			U_LOG_IFL_I(level, "All connected devices found!");
 			break;
 		}
+
+		// Check timeout only if we're not waiting forever
+		if (!wait_forever && std::chrono::steady_clock::now() - start_time > timeout) {
+			if (!connected_dongles.empty()) {
+				U_LOG_IFL_W(level, "Timeout waiting for devices - found %zu/%zu connected devices",
+				            svrs->ctx->active_dongles.size(), connected_dongles.size());
+			}
+			break;
+		}
+
 		std::this_thread::sleep_for(20ms);
 	}
-	U_LOG_IFL_I(level, "Device search time complete.");
 
 	if (out_xsysd == NULL || *out_xsysd != NULL) {
 		U_LOG_IFL_E(level, "Invalid output system pointer");

@@ -563,3 +563,10 @@ u_device_ni_get_battery_status(struct xrt_device *xdev, bool *out_present, bool 
 	E(get_battery_status);
 	return XRT_ERROR_NOT_IMPLEMENTED;
 }
+
+xrt_result_t
+u_device_ni_device_suspend(struct xrt_device *xdev)
+{
+	E(device_suspend);
+	return XRT_ERROR_NOT_IMPLEMENTED;
+}

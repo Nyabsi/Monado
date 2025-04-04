@@ -586,3 +586,27 @@ mnd_root_get_device_battery_status(
 	default: PE("Internal error, shouldn't get here"); return MND_ERROR_OPERATION_FAILED;
 	}
 }
+
+mnd_result_t
+mnd_root_suspend_device(mnd_root_t *root, uint32_t device_index)
+{
+	CHECK_NOT_NULL(root);
+
+	if (device_index >= root->ipc_c.ism->isdev_count) {
+		PE("Invalid device index (%u)", device_index);
+		return MND_ERROR_INVALID_VALUE;
+	}
+
+	const struct ipc_shared_device *shared_device = &root->ipc_c.ism->isdevs[device_index];
+
+	if (!shared_device->suspend_supported) {
+		return MND_ERROR_OPERATION_FAILED;
+	}
+
+	xrt_result_t xret = ipc_call_device_suspend(&root->ipc_c, device_index);
+	switch (xret) {
+	case XRT_SUCCESS: return MND_SUCCESS;
+	case XRT_ERROR_IPC_FAILURE: PE("Connection error!"); return MND_ERROR_OPERATION_FAILED;
+	default: PE("Internal error, shouldn't get here"); return MND_ERROR_OPERATION_FAILED;
+	}
+}

@@ -478,6 +478,7 @@ if(XRT_BUILD_DRIVER_STEAMVR_LIGHTHOUSE)
 		steamvr_lh/interfaces/settings.cpp
 		steamvr_lh/interfaces/blockqueue.cpp
 		steamvr_lh/interfaces/paths.cpp
+		steamvr_lh/console_wrapper/lh_console.cpp
 		)
 	target_link_libraries(
 		drv_steamvr_lh

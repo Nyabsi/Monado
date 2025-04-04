@@ -20,6 +20,8 @@
 #include "xrt/xrt_device.h"
 #include "openvr_driver.h"
 
+#include "console_wrapper/lh_console.hpp"
+
 class Context;
 struct InputClass;
 
@@ -75,6 +77,9 @@ public:
 	xrt_result_t
 	get_battery_status(bool *out_present, bool *out_charging, float *out_charge);
 
+	virtual xrt_result_t
+	suspend();
+
 protected:
 	Device(const DeviceBuilder &builder);
 	std::shared_ptr<Context> ctx;
@@ -85,6 +90,7 @@ protected:
 	const InputClass *input_class;
 	std::string manufacturer;
 	std::string model;
+	std::string dongle_string;
 	float vsync_to_photon_ns{0.f};
 	bool provides_battery_status{false};
 	bool charging{false};

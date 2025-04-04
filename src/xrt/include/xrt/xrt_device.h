@@ -284,6 +284,7 @@ struct xrt_device
 	bool face_tracking_supported;
 	bool body_tracking_supported;
 	bool battery_status_supported;
+	bool suspend_supported;
 
 	/*
 	 *
@@ -534,6 +535,13 @@ struct xrt_device
 	                                   float *out_charge);
 
 	/*!
+	 * Suspend a device.
+	 *
+	 * @param xdev The device to suspend.
+	 */
+	xrt_result_t (*suspend)(struct xrt_device *xdev);
+
+	/*!
 	 * Enable the feature for this device.
 	 *
 	 * @param[in] xdev        The device.
@@ -752,6 +760,19 @@ static inline xrt_result_t
 xrt_device_get_battery_status(struct xrt_device *xdev, bool *out_present, bool *out_charging, float *out_charge)
 {
 	return xdev->get_battery_status(xdev, out_present, out_charging, out_charge);
+}
+
+/*!
+ * Helper function for @ref xrt_device::suspend.
+ *
+ * @copydoc xrt_device::suspend
+ *
+ * @public @memberof xrt_device
+ */
+static inline xrt_result_t
+xrt_device_suspend(struct xrt_device *xdev)
+{
+	return xdev->suspend(xdev);
 }
 
 /*!

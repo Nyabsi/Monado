@@ -25,7 +25,7 @@ extern "C" {
 //! Major version of the API.
 #define MND_API_VERSION_MAJOR 1
 //! Minor version of the API.
-#define MND_API_VERSION_MINOR 4
+#define MND_API_VERSION_MINOR 5
 //! Patch version of the API.
 #define MND_API_VERSION_PATCH 0
 
@@ -480,6 +480,17 @@ mnd_root_get_tracking_origin_name(mnd_root_t *root, uint32_t origin_id, const ch
 mnd_result_t
 mnd_root_get_device_battery_status(
     mnd_root_t *root, uint32_t device_index, bool *out_present, bool *out_charging, float *out_charge);
+
+/*!
+ * Suspend a device.
+ *
+ * @param root          The libmonado state.
+ * @param device_index  Index of device to suspend.
+ *
+ * @return MND_SUCCESS on success
+ */
+mnd_result_t
+mnd_root_suspend_device(mnd_root_t *root, uint32_t device_index);
 
 #ifdef __cplusplus
 }

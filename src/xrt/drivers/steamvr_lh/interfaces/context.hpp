@@ -15,6 +15,7 @@
 #include <chrono>
 #include <deque>
 #include <mutex>
+#include <unordered_set>
 
 #include "openvr_driver.h"
 
@@ -118,7 +119,10 @@ public:
 	// These are owned by monado, context is destroyed when these are destroyed
 	class HmdDevice *hmd{nullptr};
 	class ControllerDevice *controller[16]{nullptr};
+	class lighthouse_console *console{nullptr};
 	const u_logging_level log_level;
+
+	std::unordered_set<std::string> active_dongles;
 
 	~Context();
 

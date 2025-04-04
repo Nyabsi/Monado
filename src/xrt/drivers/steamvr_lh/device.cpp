@@ -7,6 +7,7 @@
  * @ingroup drv_steamvr_lh
  */
 
+#include <cstddef>
 #include <functional>
 #include <cstring>
 #include <thread>
@@ -208,11 +209,13 @@ Device::Device(const DeviceBuilder &builder) : xrt_device({}), ctx(builder.ctx),
 	this->force_feedback_supported = false;
 	this->form_factor_check_supported = false;
 	this->battery_status_supported = true;
+	this->suspend_supported = true;
 
 	this->xrt_device::update_inputs = &device_bouncer<Device, &Device::update_inputs, xrt_result_t>;
 #define SETUP_MEMBER_FUNC(name) this->xrt_device::name = &device_bouncer<Device, &Device::name>
 	SETUP_MEMBER_FUNC(get_tracked_pose);
 	SETUP_MEMBER_FUNC(get_battery_status);
+	SETUP_MEMBER_FUNC(suspend);
 #undef SETUP_MEMBER_FUNC
 
 	this->xrt_device::destroy = [](xrt_device *xdev) {
@@ -423,6 +426,15 @@ Device::get_battery_status(bool *out_present, bool *out_charging, float *out_cha
 	*out_present = this->provides_battery_status;
 	*out_charging = this->charging;
 	*out_charge = this->charge;
+	return XRT_SUCCESS;
+}
+
+xrt_result_t
+Device::suspend()
+{
+	if (!this->dongle_string.empty()) {
+		this->ctx->console->power_off_dongle(this->dongle_string);
+	}
 	return XRT_SUCCESS;
 }
 
@@ -767,6 +779,14 @@ Device::handle_property_write(const vr::PropertyWrite_t &prop)
 		if (!this->manufacturer.empty()) {
 			std::snprintf(this->str, std::size(this->str), "%s %s", this->manufacturer.c_str(),
 			              this->model.c_str());
+		}
+		break;
+	}
+	case vr::Prop_ConnectedWirelessDongle_String: {
+		this->dongle_string = std::string(static_cast<char *>(prop.pvBuffer), prop.unBufferSize).c_str();
+		if (!this->dongle_string.empty()) {
+			DEV_DEBUG("Associating dongle %s with device %s", this->dongle_string.c_str(), this->serial);
+			ctx->active_dongles.insert(this->dongle_string);
 		}
 		break;
 	}
