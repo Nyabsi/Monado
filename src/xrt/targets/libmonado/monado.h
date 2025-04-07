@@ -100,6 +100,17 @@ typedef struct mnd_pose
 	} position;
 } mnd_pose_t;
 
+
+/*!
+ * A 3 element colour with floating point channels.
+ */
+struct mnd_colour
+{
+	float r;
+	float g;
+	float b;
+};
+
 /*!
  * Types of reference space.
  */
@@ -480,6 +491,22 @@ mnd_root_get_tracking_origin_name(mnd_root_t *root, uint32_t origin_id, const ch
 mnd_result_t
 mnd_root_get_device_battery_status(
     mnd_root_t *root, uint32_t device_index, bool *out_present, bool *out_charging, float *out_charge);
+
+/*!
+ * Set the chroma key parameters to be applied to the base application (if there is any).
+ *
+ * @param root      The libmonado state.
+ * @param color     The RGB color to use as the chroma key.
+ * @param threshold The threshold value for chroma key matching (0.0 to 1.0, 0.0 disables the chroma key entirely).
+ * @param smoothing The smoothing factor for edges around the chroma key (0.0 to 1.0).
+ *
+ * @return MND_SUCCESS on success
+ */
+mnd_result_t
+mnd_root_set_chroma_key_params(mnd_root_t *root,
+								const struct mnd_colour color,
+								float threshold,
+								float smoothing);
 
 #ifdef __cplusplus
 }

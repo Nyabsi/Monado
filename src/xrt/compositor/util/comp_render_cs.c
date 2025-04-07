@@ -226,6 +226,11 @@ do_cs_projection_layer(const struct comp_layer *layer,
 		ubo_data->images_samplers[cur_layer + 0].images[1] = cur_image++;
 	}
 
+	// Chroma key
+	ubo_data->chroma_key_settings.col = layer_data->proj.chroma_key_settings.col;
+	ubo_data->chroma_key_settings.threshold = layer_data->proj.chroma_key_settings.threshold;
+	ubo_data->chroma_key_settings.smoothing = layer_data->proj.chroma_key_settings.smoothing;
+
 	set_post_transform_rect(                    //
 	    layer_data,                             // data
 	    &vd->sub.norm_rect,                     // src_norm_rect

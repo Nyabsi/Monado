@@ -10,6 +10,7 @@
  */
 
 #include "xrt/xrt_config_os.h"
+#include "xrt/xrt_defines.h"
 #include "xrt/xrt_session.h"
 
 #include "os/os_time.h"
@@ -303,6 +304,23 @@ transfer_layers_locked(struct multi_system_compositor *msc, int64_t display_time
 
 	// Sort the stack array
 	qsort(array, count, sizeof(struct multi_compositor *), overlay_sort_func);
+
+	bool chroma_key_enabled = msc->chroma_key.threshold > 0.f;
+	struct multi_compositor *bmc = array[0];
+
+	if(chroma_key_enabled && count > 0 && bmc != NULL) {
+		bmc->delivered.data.env_blend_mode = XRT_BLEND_MODE_ALPHA_BLEND;
+
+		for (uint32_t i = 0; i < bmc->delivered.layer_count; i++) {
+			struct multi_layer_entry *layer = &bmc->delivered.layers[i];
+
+			if (layer->data.type == XRT_LAYER_PROJECTION) {
+				layer->data.proj.chroma_key_settings.col = msc->chroma_key.col;
+				layer->data.proj.chroma_key_settings.threshold = msc->chroma_key.threshold;
+				layer->data.proj.chroma_key_settings.smoothing = msc->chroma_key.smoothing;
+			}
+		}
+	}
 
 	// find first (ordered by bottom to top) active client to retrieve xrt_layer_frame_data
 	const enum xrt_blend_mode blend_mode = find_active_blend_mode(array, count);
@@ -609,6 +627,24 @@ system_compositor_set_z_order(struct xrt_system_compositor *xsc, struct xrt_comp
 
 	//! @todo Locking?
 	mc->state.z_order = z_order;
+	os_mutex_unlock(&msc->list_and_timing_lock);
+
+	return XRT_SUCCESS;
+}
+
+static xrt_result_t
+system_compositor_set_base_chroma_key_params(struct xrt_system_compositor *xsc,
+                                             const struct xrt_colour_rgb_f32 col,
+                                             float threshold,
+                                             float smoothing)
+{
+	struct multi_system_compositor *msc = multi_system_compositor(xsc);
+
+	os_mutex_lock(&msc->list_and_timing_lock);
+	msc->chroma_key.col = col;
+	msc->chroma_key.threshold = threshold;
+	msc->chroma_key.smoothing = smoothing;
+	os_mutex_unlock(&msc->list_and_timing_lock);
 
 	return XRT_SUCCESS;
 }
@@ -747,6 +783,7 @@ comp_multi_create_system_compositor(struct xrt_compositor_native *xcn,
 	msc->base.destroy = system_compositor_destroy;
 	msc->xmcc.set_state = system_compositor_set_state;
 	msc->xmcc.set_z_order = system_compositor_set_z_order;
+	msc->xmcc.set_base_chroma_key_params = system_compositor_set_base_chroma_key_params;
 	msc->xmcc.set_main_app_visibility = system_compositor_set_main_app_visibility;
 	msc->xmcc.notify_loss_pending = system_compositor_notify_loss_pending;
 	msc->xmcc.notify_lost = system_compositor_notify_lost;

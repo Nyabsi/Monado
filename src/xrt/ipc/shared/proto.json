@@ -536,6 +536,14 @@
 			{"name": "charging", "type": "bool"},
 			{"name": "charge", "type": "float"}
 		]
+	},
+	
+	"compositor_set_chroma_key_params": {
+		"in": [
+			{"name": "color", "type": "struct xrt_colour_rgb_f32"},
+			{"name": "threshold", "type": "float"},
+			{"name": "smoothing", "type": "float"}
+		]
 	}
 
 }

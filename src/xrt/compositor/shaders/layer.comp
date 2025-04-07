@@ -73,6 +73,10 @@ layout(set = 0, binding = 3, std140) uniform restrict Config
 
 	// quad extent in world scale
 	vec2 quad_extent[RENDER_MAX_LAYERS];
+
+	vec3 chroma_key_color;     // RGB + threshold in alpha
+	float chroma_key_threshold;
+	float chroma_key_smoothing;
 } ubo;
 
 
@@ -339,17 +343,37 @@ vec4 do_equirect2(vec2 view_uv, uint layer)
 	return out_color;
 }
 
+vec4 apply_chroma_key(vec4 color)
+{
+	vec3 delta_color = color.rgb;
+	if (do_color_correction) {
+		delta_color = from_linear_to_srgb(color.rgb);
+	}
+	vec3 delta = abs(delta_color - ubo.chroma_key_color);
+	float distance = length(delta);
+	float threshold = ubo.chroma_key_threshold;
+	
+	if (threshold <= 0.0) {
+		return color; // Chroma key disabled
+	}
+	
+	float alpha = smoothstep(
+		threshold * (1.0 - ubo.chroma_key_smoothing),
+		threshold,
+		distance
+	);
+	
+	return vec4(color.rgb, color.a * alpha);
+}
+
 vec4 do_projection(vec2 view_uv, uint layer)
 {
 	uint source_image_index = ubo.images_samplers[layer].x;
 
 	// Do any transformation needed.
 	vec2 uv = transform_uv(view_uv, layer);
-
-	// Sample the source.
-	vec4 colour = vec4(texture(source[source_image_index], uv).rgba);
-
-	return colour;
+	vec4 colour = texture(source[source_image_index], uv);
+	return apply_chroma_key(colour);
 }
 
 vec3 get_direction(vec2 uv)

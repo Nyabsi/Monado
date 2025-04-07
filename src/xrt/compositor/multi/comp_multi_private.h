@@ -368,6 +368,14 @@ struct multi_system_compositor
 
 	//! List of active clients.
 	struct multi_compositor *clients[MULTI_MAX_CLIENTS];
+
+	//! Chroma key parameters
+	struct {
+                 //! Color key to match, expected values in non-linear sRGB color-space
+		struct xrt_colour_rgb_f32 col;
+		float threshold; // Threshold value for chroma key matching
+		float smoothing; // Smoothing factor for edges
+	} chroma_key;
 };
 
 /*!
