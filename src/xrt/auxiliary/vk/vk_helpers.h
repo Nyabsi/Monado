@@ -1,4 +1,5 @@
 // Copyright 2019-2024, Collabora, Ltd.
+// Copyright 2024-2025, NVIDIA CORPORATION.
 // SPDX-License-Identifier: BSL-1.0
 /*!
  * @file
@@ -126,6 +127,7 @@ struct vk_bundle
 	// end of GENERATED instance extension code - do not modify - used by scripts
 
 	// beginning of GENERATED device extension code - do not modify - used by scripts
+	bool has_KHR_8bit_storage;
 	bool has_KHR_external_fence_fd;
 	bool has_KHR_external_semaphore_fd;
 	bool has_KHR_format_feature_flags2;
@@ -999,6 +1001,7 @@ struct vk_device_features
 	bool timeline_semaphore;
 	bool synchronization_2;
 	bool ext_fmt_resolve;
+	bool storage_buffer_8bit_access;
 };
 
 /*!
