@@ -336,11 +336,25 @@ create_image(struct vk_bundle *vk, const struct xrt_swapchain_create_info *info,
 	    .handleTypes = memory_handle_type,
 	};
 
+	void *pNext_for_allocate = (void *)&export_alloc_info;
+	out_image->buffer_handle = XRT_GRAPHICS_BUFFER_HANDLE_INVALID;
+#if defined(XRT_GRAPHICS_BUFFER_HANDLE_IS_AHARDWAREBUFFER)
+	VkImportAndroidHardwareBufferInfoANDROID import_memory_info = {
+	    .sType = VK_STRUCTURE_TYPE_IMPORT_ANDROID_HARDWARE_BUFFER_INFO_ANDROID,
+	    .pNext = NULL,
+	};
+	if (info->external_buffer) {
+		xrt_result_t xret1 = ahardwarebuffer_image_allocate(info, &out_image->buffer_handle);
+		import_memory_info.buffer = out_image->buffer_handle;
+		dedicated_memory_info.pNext = &import_memory_info;
+		pNext_for_allocate = (void *)&dedicated_memory_info;
+	}
+#endif
 	ret = vk_alloc_and_bind_image_memory(   //
 	    vk,                                 // vk_bundle
 	    image,                              // image
 	    requirements,                       // requirements
-	    &export_alloc_info,                 // pNext_for_allocate
+	    pNext_for_allocate,                 // pNext_for_allocate
 	    "vk_image_allocator::create_image", // caller_name
 	    &device_memory);                    // out_mem
 	if (ret != VK_SUCCESS) {
@@ -366,6 +380,9 @@ destroy_image(struct vk_bundle *vk, struct vk_image *image)
 	if (image->memory != VK_NULL_HANDLE) {
 		vk->vkFreeMemory(vk->device, image->memory, NULL);
 		image->memory = VK_NULL_HANDLE;
+	}
+	if (image->buffer_handle != XRT_GRAPHICS_BUFFER_HANDLE_INVALID) {
+		u_graphics_buffer_unref(&image->buffer_handle);
 	}
 }
 

@@ -296,6 +296,7 @@ oxr_swapchain_common_create(struct oxr_logger *log,
 	    .face_count = createInfo->faceCount,
 	    .array_size = createInfo->arraySize,
 	    .mip_count = createInfo->mipCount,
+	    .external_buffer = false,
 	};
 
 #ifdef OXR_HAVE_KHR_vulkan_swapchain_format_list

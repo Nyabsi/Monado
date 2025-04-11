@@ -30,6 +30,7 @@ struct vk_image
 	VkDeviceMemory memory;
 	VkDeviceSize size;
 	bool use_dedicated_allocation;
+	xrt_graphics_buffer_handle_t buffer_handle;
 };
 
 struct vk_image_collection

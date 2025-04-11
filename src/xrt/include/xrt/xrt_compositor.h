@@ -895,6 +895,7 @@ struct xrt_swapchain_create_info
 	 */
 	uint32_t format_count;
 	uint32_t formats[XRT_MAX_SWAPCHAIN_CREATE_INFO_FORMAT_LIST_COUNT];
+	bool external_buffer;
 };
 
 /*!
