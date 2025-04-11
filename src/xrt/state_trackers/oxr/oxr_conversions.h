@@ -12,7 +12,6 @@
 
 #include "xrt/xrt_defines.h"
 #include "xrt/xrt_space.h"
-#include "xrt/xrt_vulkan_includes.h"
 #include "xrt/xrt_openxr_includes.h"
 
 

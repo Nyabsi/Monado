@@ -191,13 +191,12 @@ vk_check_extension(VkExtensionProperties *props, uint32_t prop_count, const char
 static XrResult
 vk_get_instance_ext_props(struct oxr_logger *log,
                           VkInstance instance,
-                          PFN_vkGetInstanceProcAddr GetInstanceProcAddr,
+                          PFN_vkGetInstanceProcAddr inst_proc_addr,
                           VkExtensionProperties **out_props,
                           uint32_t *out_prop_count)
 {
 	PFN_vkEnumerateInstanceExtensionProperties EnumerateInstanceExtensionProperties =
-	    (PFN_vkEnumerateInstanceExtensionProperties)vkGetInstanceProcAddr(NULL,
-	                                                                      "vkEnumerateInstanceExtensionProperties");
+	    (PFN_vkEnumerateInstanceExtensionProperties)inst_proc_addr(NULL, "vkEnumerateInstanceExtensionProperties");
 
 	if (!EnumerateInstanceExtensionProperties) {
 		return oxr_error(log, XR_ERROR_RUNTIME_FAILURE,

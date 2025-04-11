@@ -674,7 +674,7 @@ compositor_init_vulkan(struct comp_compositor *c)
 	 */
 
 	struct comp_vulkan_arguments vk_args = {
-	    .get_instance_proc_address = vkGetInstanceProcAddr,
+	    .get_instance_proc_address = NULL,
 	    .required_instance_version = required_instance_version,
 	    .required_instance_extensions = required_instance_ext_list,
 	    .optional_instance_extensions = optional_instance_ext_list,

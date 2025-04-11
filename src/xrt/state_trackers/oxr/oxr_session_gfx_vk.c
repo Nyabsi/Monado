@@ -9,6 +9,7 @@
  * @ingroup comp_client
  */
 
+
 #include "xrt/xrt_instance.h"
 #include "xrt/xrt_handles.h"
 #include "xrt/xrt_gfx_vk.h"
@@ -22,7 +23,6 @@
 #include "oxr_logger.h"
 #include "oxr_two_call.h"
 #include "oxr_handle.h"
-
 
 #ifndef XR_USE_GRAPHICS_API_VULKAN
 #error "Must build this file with Vulkan enabled!"
@@ -143,7 +143,7 @@ oxr_session_populate_vk(struct oxr_logger *log,
 	struct xrt_compositor_vk *xcvk = xrt_gfx_vk_provider_create( //
 	    xcn,                                                     //
 	    next->instance,                                          //
-	    vkGetInstanceProcAddr,                                   //
+	    NULL,                                                    //
 	    next->physicalDevice,                                    //
 	    next->device,                                            //
 	    external_fence_fd_enabled,                               //

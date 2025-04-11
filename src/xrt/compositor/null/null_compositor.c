@@ -183,7 +183,7 @@ compositor_init_vulkan(struct null_compositor *c)
 	    u_string_list_create_from_array(optional_device_extensions, ARRAY_SIZE(optional_device_extensions));
 
 	struct comp_vulkan_arguments vk_args = {
-	    .get_instance_proc_address = vkGetInstanceProcAddr,
+	    .get_instance_proc_address = NULL,
 	    .required_instance_version = VK_MAKE_VERSION(1, 0, 0),
 	    .required_instance_extensions = required_instance_ext_list,
 	    .optional_instance_extensions = optional_instance_ext_list,

@@ -401,7 +401,7 @@ check_vulkan_caps(struct comp_compositor *c, bool *out_detected)
 	struct vk_bundle *temp_vk = &temp_vk_storage;
 	temp_vk->log_level = U_LOGGING_WARN;
 
-	ret = vk_get_loader_functions(temp_vk, vkGetInstanceProcAddr);
+	ret = vk_get_loader_functions(temp_vk, NULL);
 	if (ret != VK_SUCCESS) {
 		CVK_ERROR(c, "vk_get_loader_functions", "Failed to get loader functions.", ret);
 		return false;

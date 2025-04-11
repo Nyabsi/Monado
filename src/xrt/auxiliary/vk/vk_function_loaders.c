@@ -19,7 +19,6 @@
 
 #include "vk/vk_helpers.h"
 
-
 /*
  *
  * Helpers.
@@ -42,7 +41,11 @@
 VkResult
 vk_get_loader_functions(struct vk_bundle *vk, PFN_vkGetInstanceProcAddr g)
 {
-	vk->vkGetInstanceProcAddr = g;
+	if (g == NULL) {
+		vk->vkGetInstanceProcAddr = vkGetInstanceProcAddr;
+	} else {
+		vk->vkGetInstanceProcAddr = g;
+	}
 
 	// Fill in all loader functions.
 	// clang-format off

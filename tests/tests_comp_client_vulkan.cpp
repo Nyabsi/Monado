@@ -118,7 +118,7 @@ TEST_CASE("client_compositor", "[.][needgpu]")
 	unique_string_list optional_device_extension_list{u_string_list_create()};
 
 	comp_vulkan_arguments args{VK_MAKE_VERSION(1, 0, 0),
-	                           vkGetInstanceProcAddr,
+	                           NULL,
 	                           required_instance_ext_list.get(),
 	                           optional_instance_ext_list.get(),
 	                           required_device_extension_list.get(),
@@ -135,7 +135,7 @@ TEST_CASE("client_compositor", "[.][needgpu]")
 	struct xrt_compositor_vk *xcvk = xrt_gfx_vk_provider_create( //
 	    xcn,                                                     //
 	    vk->instance,                                            //
-	    vkGetInstanceProcAddr,                                   //
+	    NULL,                                                    //
 	    vk->physical_device,                                     //
 	    vk->device,
 #if defined(XRT_GRAPHICS_SYNC_HANDLE_IS_FD)          //
