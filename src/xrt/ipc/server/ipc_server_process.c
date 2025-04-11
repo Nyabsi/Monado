@@ -1,4 +1,5 @@
 // Copyright 2020-2024, Collabora, Ltd.
+// Copyright 2024-2025, NVIDIA CORPORATION.
 // SPDX-License-Identifier: BSL-1.0
 /*!
  * @file
@@ -980,7 +981,7 @@ ipc_server_get_system_properties(struct ipc_server *vs, struct xrt_system_proper
 
 #ifndef XRT_OS_ANDROID
 int
-ipc_server_main(int argc, char **argv)
+ipc_server_main(int argc, char **argv, const struct ipc_server_main_info *ismi)
 {
 	// Get log level first.
 	enum u_logging_level log_level = debug_get_log_option_ipc_log();
@@ -1000,7 +1001,8 @@ ipc_server_main(int argc, char **argv)
 	 * init_all since that function is shared with Android and the debug
 	 * GUI isn't supported on Android.
 	 */
-	u_debug_gui_create(&s->debug_gui);
+	u_debug_gui_create(&ismi->udgci, &s->debug_gui);
+
 
 	int ret = init_all(s, log_level);
 	if (ret < 0) {
