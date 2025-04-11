@@ -14,6 +14,7 @@
 
 #include "ipc_client_generated.h"
 
+#include <getopt.h>
 #include <ctype.h>
 
 
@@ -27,6 +28,7 @@ typedef enum op_mode
 	MODE_SET_FOCUSED,
 	MODE_TOGGLE_IO,
 	MODE_RECENTER,
+	MODE_SET_BRIGHTNESS,
 } op_mode_t;
 
 
@@ -143,6 +145,43 @@ recenter_local_spaces(struct ipc_connection *ipc_c)
 
 	return 0;
 }
+
+int
+set_brightness(struct ipc_connection *ipc_c, int client_id, const char *value)
+{
+	const int length = strlen(value);
+	if (length == 0) {
+		return 1;
+	}
+
+	bool relative = (value[0] == '-' || value[0] == '+');
+
+	char *end = NULL;
+	float target_brightness = strtof(value, &end);
+
+	if ((length > (end - value)) && *end == '%') {
+		target_brightness /= 100.f;
+	}
+
+	float out_brightness;
+	const xrt_result_t r =
+	    ipc_call_device_set_brightness(ipc_c, client_id, target_brightness, relative, &out_brightness);
+
+	IPC_CHK_AND_RET(ipc_c, r, "ipc_call_device_set_brightness");
+
+	if (relative || out_brightness != target_brightness) {
+		P("Set brightness to %d%%\n", (int)(out_brightness * 100));
+	}
+
+	return 0;
+}
+
+enum LongOptions
+{
+	OPTION_CLIENT = 100,
+	OPTION_SET_BRIGHTNESS,
+};
+
 int
 main(int argc, char *argv[])
 {
@@ -151,9 +190,17 @@ main(int argc, char *argv[])
 	// parse arguments
 	int c;
 	int s_val = 0;
+	char *brightness;
 
+	static struct option long_options[] = {
+	    {"client", required_argument, NULL, OPTION_CLIENT},
+	    {"set-brightness", required_argument, NULL, OPTION_SET_BRIGHTNESS},
+	    {NULL, 0, NULL, 0},
+	};
+
+	int option_index = 0;
 	opterr = 0;
-	while ((c = getopt(argc, argv, "p:f:i:c")) != -1) {
+	while ((c = getopt_long(argc, argv, "p:f:i:c", long_options, &option_index)) != -1) {
 		switch (c) {
 		case 'p':
 			s_val = atoi(optarg);
@@ -168,6 +215,15 @@ main(int argc, char *argv[])
 			op_mode = MODE_TOGGLE_IO;
 			break;
 		case 'c': op_mode = MODE_RECENTER; break;
+		case OPTION_CLIENT: {
+			s_val = atoi(optarg);
+			break;
+		}
+		case OPTION_SET_BRIGHTNESS: {
+			brightness = optarg;
+			op_mode = MODE_SET_BRIGHTNESS;
+			break;
+		}
 		case '?':
 			if (optopt == 's') {
 				PE("Option -s requires an id to set.\n");
@@ -177,6 +233,8 @@ main(int argc, char *argv[])
 				PE("    -f <id>: Set focused client\n");
 				PE("    -p <id>: Set primary client\n");
 				PE("    -i <id>: Toggle whether client receives input\n");
+				PE("    --client <id>: Set client for subsequent command\n");
+				PE("    --set-brightness <[+-]brightness[%%]>: Set display brightness\n");
 			} else {
 				PE("Option `\\x%x' unknown.\n", optopt);
 			}
@@ -204,6 +262,7 @@ main(int argc, char *argv[])
 	case MODE_SET_FOCUSED: exit(set_focused(&ipc_c, s_val)); break;
 	case MODE_TOGGLE_IO: exit(toggle_io(&ipc_c, s_val)); break;
 	case MODE_RECENTER: exit(recenter_local_spaces(&ipc_c)); break;
+	case MODE_SET_BRIGHTNESS: exit(set_brightness(&ipc_c, s_val, brightness)); break;
 	default: P("Unrecognised operation mode.\n"); exit(1);
 	}
 

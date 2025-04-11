@@ -137,6 +137,25 @@ public:
 	add_haptic_event(vr::VREvent_HapticVibration_t event);
 
 	void
+	send_event(vr::EVREventType type)
+	{
+		const auto data = vr::VREvent_Data_t{};
+		VendorSpecificEvent(0, type, data, 0);
+	}
+
+	Settings &
+	get_settings()
+	{
+		return settings;
+	}
+
+	const Settings &
+	get_settings() const
+	{
+		return settings;
+	}
+
+	void
 	Log(const char *pchLogMessage) override;
 
 	/***** IVRDriverContext methods *****/

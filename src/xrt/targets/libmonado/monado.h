@@ -481,6 +481,37 @@ mnd_result_t
 mnd_root_get_device_battery_status(
     mnd_root_t *root, uint32_t device_index, bool *out_present, bool *out_charging, float *out_charge);
 
+/*!
+ * Get current brightness of a display device.
+ *
+ * @param root                 The libmonado state.
+ * @param device_index         Index of device to retrieve brightness from.
+ * @param[out] out_brightness  Pointer to value to populate with the current device brightness, where 0 is 0%, and 1 is
+ * 100%.
+ *
+ * @return MND_SUCCESS on success
+ */
+mnd_result_t
+mnd_root_get_device_brightness(mnd_root_t *root, uint32_t device_index, float *out_brightness);
+
+/*!
+ * @brief Set the display brightness.
+ *
+ * @param root                 The libmonado state.
+ * @param device_index         Index of device to retrieve battery info from.
+ * @param[in] brightness       Desired display brightness, usually between 0 and 1. Some devices may
+ *                             allow exceeding 1 if the supported range exceeds 100%, but it will be clamped to
+ *                             the supported range.
+ * @param[in] relative         Whether to add \a brightness to the current brightness, instead of overwriting
+ *                             the current brightness.
+ * @param[out] out_brightness  Pointer to the value to populate with the actual brightness value that was set.
+ *
+ * @return MND_SUCCESS on success
+ */
+mnd_result_t
+mnd_root_set_device_brightness(
+    mnd_root_t *root, uint32_t device_index, float brightness, bool relative, float *out_brightness);
+
 #ifdef __cplusplus
 }
 #endif

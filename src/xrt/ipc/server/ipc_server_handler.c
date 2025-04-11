@@ -17,6 +17,7 @@
 
 #include "server/ipc_server.h"
 #include "ipc_server_generated.h"
+#include "xrt/xrt_device.h"
 
 #ifdef XRT_GRAPHICS_SYNC_HANDLE_IS_FD
 #include <unistd.h>
@@ -2261,4 +2262,22 @@ ipc_handle_device_get_battery_status(
 {
 	struct xrt_device *xdev = get_xdev(ics, id);
 	return xrt_device_get_battery_status(xdev, out_present, out_charging, out_charge);
+}
+
+xrt_result_t
+ipc_handle_device_get_brightness(volatile struct ipc_client_state *ics, uint32_t id, float *out_brightness)
+{
+	struct xrt_device *xdev = get_xdev(ics, id);
+	return xrt_device_get_brightness(xdev, out_brightness);
+}
+
+xrt_result_t
+ipc_handle_device_set_brightness(
+    volatile struct ipc_client_state *ics, uint32_t id, float brightness, bool relative, float *out_brightness)
+{
+	struct xrt_device *xdev = get_xdev(ics, id);
+	if (!xdev->brightness_control_supported) {
+		return XRT_ERROR_FEATURE_NOT_SUPPORTED;
+	}
+	return xrt_device_set_brightness(xdev, brightness, relative, out_brightness);
 }

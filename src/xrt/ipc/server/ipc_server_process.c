@@ -356,6 +356,7 @@ init_shm(struct ipc_server *s)
 		isdev->body_tracking_supported = xdev->body_tracking_supported;
 		isdev->stage_supported = xdev->stage_supported;
 		isdev->battery_status_supported = xdev->battery_status_supported;
+		isdev->brightness_control_supported = xdev->brightness_control_supported;
 
 		// Setup the tracking origin.
 		isdev->tracking_origin_index = (uint32_t)-1;

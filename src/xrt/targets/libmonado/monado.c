@@ -84,6 +84,14 @@ enum role_enum
 		}                                                                                                      \
 	} while (false)
 
+#define CHECK_DEVICE_INDEX(INDEX)                                                                                      \
+	do {                                                                                                           \
+		if (INDEX >= root->ipc_c.ism->isdev_count) {                                                           \
+			PE("Invalid device index (%u)", INDEX);                                                        \
+			return MND_ERROR_INVALID_VALUE;                                                                \
+		}                                                                                                      \
+	} while (false)
+
 static int
 get_client_info(mnd_root_t *root, uint32_t client_id)
 {
@@ -580,6 +588,51 @@ mnd_root_get_device_battery_status(
 
 	xrt_result_t xret =
 	    ipc_call_device_get_battery_status(&root->ipc_c, device_index, out_present, out_charging, out_charge);
+	switch (xret) {
+	case XRT_SUCCESS: return MND_SUCCESS;
+	case XRT_ERROR_IPC_FAILURE: PE("Connection error!"); return MND_ERROR_OPERATION_FAILED;
+	default: PE("Internal error, shouldn't get here"); return MND_ERROR_OPERATION_FAILED;
+	}
+}
+
+mnd_result_t
+mnd_root_get_device_brightness(mnd_root_t *root, uint32_t device_index, float *out_brightness)
+{
+	CHECK_NOT_NULL(root);
+	CHECK_DEVICE_INDEX(device_index);
+	CHECK_NOT_NULL(out_brightness);
+
+	const struct ipc_shared_device *shared_device = &root->ipc_c.ism->isdevs[device_index];
+
+	if (!shared_device->brightness_control_supported) {
+		return MND_ERROR_OPERATION_FAILED;
+	}
+
+	xrt_result_t xret = ipc_call_device_get_brightness(&root->ipc_c, device_index, out_brightness);
+	switch (xret) {
+	case XRT_SUCCESS: return MND_SUCCESS;
+	case XRT_ERROR_IPC_FAILURE: PE("Connection error!"); return MND_ERROR_OPERATION_FAILED;
+	default: PE("Internal error, shouldn't get here"); return MND_ERROR_OPERATION_FAILED;
+	}
+}
+
+mnd_result_t
+mnd_root_set_device_brightness(
+    mnd_root_t *root, uint32_t device_index, float brightness, bool relative, float *out_brightness)
+{
+	CHECK_NOT_NULL(root);
+	CHECK_DEVICE_INDEX(device_index);
+	CHECK_NOT_NULL(out_brightness);
+
+
+	const struct ipc_shared_device *shared_device = &root->ipc_c.ism->isdevs[device_index];
+
+	if (!shared_device->brightness_control_supported) {
+		return MND_ERROR_OPERATION_FAILED;
+	}
+
+	xrt_result_t xret =
+	    ipc_call_device_set_brightness(&root->ipc_c, device_index, brightness, relative, out_brightness);
 	switch (xret) {
 	case XRT_SUCCESS: return MND_SUCCESS;
 	case XRT_ERROR_IPC_FAILURE: PE("Connection error!"); return MND_ERROR_OPERATION_FAILED;
