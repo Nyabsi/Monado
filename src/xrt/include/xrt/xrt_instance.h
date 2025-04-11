@@ -77,6 +77,9 @@ struct xrt_application_info
 	bool htc_facial_tracking_enabled;
 	bool fb_body_tracking_enabled;
 	bool fb_face_tracking2_enabled;
+	bool meta_body_tracking_full_body_enabled;
+	bool meta_body_tracking_fidelity_enabled;
+	bool meta_body_tracking_calibration_enabled;
 };
 
 /*!
