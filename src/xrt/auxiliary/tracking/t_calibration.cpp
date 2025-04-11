@@ -683,6 +683,9 @@ process_view_samples(class Calibration &c, struct ViewState &view, int cols, int
 		U_LOG_RAW("};");
 	}
 
+	StereoCameraCalibrationWrapper wrapped(c.use_fisheye ? T_DISTORTION_FISHEYE_KB4 : T_DISTORTION_OPENCV_RADTAN_14,
+	                                       true);
+
 	if (c.use_fisheye) {
 		int crit_flag = 0;
 		crit_flag |= cv::TermCriteria::EPS;
@@ -756,37 +759,63 @@ process_view_samples(class Calibration &c, struct ViewState &view, int cols, int
 	std::cout << "rp_error: " << rp_error << "\n";
 	std::cout << "intrinsics_mat:\n" << intrinsics_mat << "\n";
 	std::cout << "new_intrinsics_mat:\n" << new_intrinsics_mat << "\n";
-		std::cout << "distortion_mat:\n" << distortion_mat << "\n";
+	std::cout << "distortion_mat:\n" << distortion_mat << "\n";
+
 	// clang-format on
+
+	auto rotation_mat = cv::Matx33d::eye();
+
+	wrapped.view[0].image_size_pixels.w = image_size.width;
+	wrapped.view[0].image_size_pixels.h = image_size.height;
+	wrapped.view[1].image_size_pixels = wrapped.view[0].image_size_pixels;
 
 	if (c.use_fisheye) {
 		cv::fisheye::initUndistortRectifyMap(intrinsics_mat,     // K
 		                                     distortion_mat,     // D
-		                                     cv::Matx33d::eye(), // R
+		                                     rotation_mat,       // R
 		                                     new_intrinsics_mat, // P
 		                                     image_size,         // size
 		                                     CV_32FC1,           // m1type
 		                                     view.map1,          // map1
 		                                     view.map2);         // map2
-
-		// Set the maps as valid.
-		view.maps_valid = true;
 	} else {
-		cv::initUndistortRectifyMap( //
-		    intrinsics_mat,          // K
-		    distortion_mat,          // D
-		    cv::noArray(),           // R
-		    new_intrinsics_mat,      // P
-		    image_size,              // size
-		    CV_32FC1,                // m1type
-		    view.map1,               // map1
-		    view.map2);              // map2
-
-		// Set the maps as valid.
-		view.maps_valid = true;
+		cv::initUndistortRectifyMap(intrinsics_mat,     // K
+		                            distortion_mat,     // D
+		                            rotation_mat,       // R
+		                            new_intrinsics_mat, // P
+		                            image_size,         // size
+		                            CV_32FC1,           // m1type
+		                            view.map1,          // map1
+		                            view.map2);         // map2
 	}
 
+	// Set the maps as valid.
+	view.maps_valid = true;
+
 	c.state.calibrated = true;
+
+	distortion_mat.copySize(wrapped.view[0].distortion_mat);
+	distortion_mat.copyTo(wrapped.view[0].distortion_mat);
+
+	new_intrinsics_mat.copySize(wrapped.view[0].intrinsics_mat);
+	new_intrinsics_mat.copyTo(wrapped.view[0].intrinsics_mat);
+
+	// Preview undistortion/rectification.
+	StereoRectificationMaps maps(wrapped.base);
+	c.state.view[0].map1 = maps.view[0].rectify.remap_x;
+	c.state.view[0].map2 = maps.view[0].rectify.remap_y;
+	c.state.view[0].maps_valid = true;
+
+	c.state.view[1].map1 = maps.view[1].rectify.remap_x;
+	c.state.view[1].map2 = maps.view[1].rectify.remap_y;
+	c.state.view[1].maps_valid = true;
+
+	// Validate that nothing has been re-allocated.
+	assert(wrapped.isDataStorageValid());
+
+	if (c.status != NULL) {
+		t_stereo_camera_calibration_reference(&c.status->stereo_data, wrapped.base);
+	}
 }
 
 static void

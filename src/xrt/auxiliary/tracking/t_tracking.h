@@ -248,6 +248,7 @@ struct t_stereo_camera_calibration
 {
 	//! Ref counting
 	struct xrt_reference reference;
+	bool mono;
 
 	//! Calibration of individual views/sensor
 	struct t_camera_calibration view[2];

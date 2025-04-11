@@ -109,6 +109,7 @@ public:
 	View view[2];
 
 	bool calibrated;
+	bool mono;
 
 	cv::Mat disparity_to_depth;
 	cv::Vec3d r_cam_translation;
@@ -277,46 +278,74 @@ process(TrackerPSMV &t, struct xrt_frame *xf)
 	// Create the debug frame if needed.
 	t.debug.refresh(xf);
 
-	t.view[0].keypoints.clear();
-	t.view[1].keypoints.clear();
-
-	int cols = xf->width / 2;
-	int rows = xf->height;
-	int stride = xf->stride;
-
-	cv::Mat l_grey(rows, cols, CV_8UC1, xf->data, stride);
-	cv::Mat r_grey(rows, cols, CV_8UC1, xf->data + cols, stride);
-
-	do_view(t, t.view[0], l_grey, t.debug.rgb[0]);
-	do_view(t, t.view[1], r_grey, t.debug.rgb[1]);
-
 	cv::Point3f last_point(t.tracked_object_position.x, t.tracked_object_position.y, t.tracked_object_position.z);
 	auto nearest_world = make_lowest_score_finder<cv::Point3f>([&](const cv::Point3f &world_point) {
 		//! @todo don't really need the square root to be done here.
 		return cv::norm(world_point - last_point);
 	});
-	// do some basic matching to come up with likely disparity-pairs.
 
-	const cv::Matx44d disparity_to_depth = static_cast<cv::Matx44d>(t.disparity_to_depth);
+	t.view[0].keypoints.clear();
+	t.view[1].keypoints.clear();
 
-	for (const cv::KeyPoint &l_keypoint : t.view[0].keypoints) {
-		cv::Point2f l_blob = l_keypoint.pt;
+	if (t.mono) {
+		int cols = xf->width;
+		int rows = xf->height;
+		int stride = xf->stride;
+		cv::Mat grey(rows, cols, CV_8UC1, xf->data, stride);
+		do_view(t, t.view[0], grey, t.debug.rgb[0]);
 
-		auto nearest_blob = make_lowest_score_finder<cv::Point2f>(
-		    [&](const cv::Point2f &r_blob) { return l_blob.x - r_blob.x; });
+		/* Since these are single points with a size, we might be able
+		 * to use them as-is, approximating distance to the ball's area.  */
+		for (const cv::KeyPoint &keypoint : t.view[0].keypoints) {
+			cv::Point2f blob = keypoint.pt;
+			float D = keypoint.size;
+			cv::Vec4d xydw(blob.x, blob.y, -10 / D, 1.0f);
+			cv::Vec4d h_world = cv::Matx44d::eye() * xydw;
+			/* Scale down from image size and apply a similar
+			 * transformation to the one in world_point_from_blobs. */
+			cv::Point3f world_point(             //
+			    (h_world[0] * h_world[3] / 100), //
+			    (h_world[1] * h_world[3] / 100), //
+			    h_world[2] * h_world[3]);        //
 
-		for (const cv::KeyPoint &r_keypoint : t.view[1].keypoints) {
-			cv::Point2f r_blob = r_keypoint.pt;
-			// find closest point on same-ish scanline
-			if ((l_blob.y < r_blob.y + 3) && (l_blob.y > r_blob.y - 3)) {
-				nearest_blob.handle_candidate(r_blob);
-			}
+			world_point.y = -world_point.y;
+			world_point.z = -world_point.z;
+
+			nearest_world.handle_candidate(world_point);
 		}
-		//! @todo do we need to avoid claiming the same counterpart
-		//! several times?
-		if (nearest_blob.got_one) {
-			cv::Point3f pt = world_point_from_blobs(l_blob, nearest_blob.best, disparity_to_depth);
-			nearest_world.handle_candidate(pt);
+	} else {
+		int cols = xf->width / 2;
+		int rows = xf->height;
+		int stride = xf->stride;
+
+		cv::Mat l_grey(rows, cols, CV_8UC1, xf->data, stride);
+		cv::Mat r_grey(rows, cols, CV_8UC1, xf->data + cols, stride);
+
+		do_view(t, t.view[0], l_grey, t.debug.rgb[0]);
+		do_view(t, t.view[1], r_grey, t.debug.rgb[1]);
+
+		const cv::Matx44d disparity_to_depth = static_cast<cv::Matx44d>(t.disparity_to_depth);
+		// do some basic matching to come up with likely disparity-pairs.
+
+		for (const cv::KeyPoint &l_keypoint : t.view[0].keypoints) {
+			cv::Point2f l_blob = l_keypoint.pt;
+
+			auto nearest_blob = make_lowest_score_finder<cv::Point2f>(
+			    [&](const cv::Point2f &r_blob) { return l_blob.x - r_blob.x; });
+
+			for (const cv::KeyPoint &r_keypoint : t.view[1].keypoints) {
+				cv::Point2f r_blob = r_keypoint.pt;
+				// find closest point on same-ish scanline
+				if ((l_blob.y < r_blob.y + 3) && (l_blob.y > r_blob.y - 3)) {
+					nearest_blob.handle_candidate(r_blob);
+				}
+			}
+			//! @todo do we need to avoid claiming the same counterpart
+			//! several times?
+			if (nearest_blob.got_one) {
+				cv::Point3f pt = world_point_from_blobs(l_blob, nearest_blob.best, disparity_to_depth);
+				nearest_world.handle_candidate(pt);
+			}
 		}
 	}
 
@@ -571,6 +600,7 @@ t_psmv_create(struct xrt_frame_context *xfctx,
 	auto &t = *(new TrackerPSMV());
 	int ret;
 
+	t.mono = data->mono;
 	t.base.get_tracked_pose = t_psmv_get_tracked_pose;
 	t.base.push_imu = t_psmv_push_imu;
 	t.base.destroy = t_psmv_fake_destroy;
