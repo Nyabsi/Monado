@@ -230,23 +230,31 @@ find_active_blend_mode(struct multi_compositor **overlay_sorted_clients, size_t 
 	if (overlay_sorted_clients == NULL)
 		return XRT_BLEND_MODE_OPAQUE;
 
-	const struct multi_compositor *first_visible = NULL;
+	enum xrt_blend_mode chosen_mode = 0;
 	for (size_t k = 0; k < size; ++k) {
 		const struct multi_compositor *mc = overlay_sorted_clients[k];
 		assert(mc != NULL);
 
-		// if a focused client is found just return, "first_visible" has lower priority and can be ignored.
-		if (mc->state.focused) {
-			assert(mc->state.visible);
-			return mc->delivered.data.env_blend_mode;
+		if (!mc->state.visible) {
+			continue;
 		}
 
-		if (first_visible == NULL && mc->state.visible) {
-			first_visible = mc;
+		// if any uses opaque, use opaque
+		if (mc->delivered.data.env_blend_mode == XRT_BLEND_MODE_OPAQUE) {
+			return XRT_BLEND_MODE_OPAQUE;
+		}
+
+		// if all use the same mode, use that mode
+		if (chosen_mode == 0) {
+			chosen_mode = mc->delivered.data.env_blend_mode;
+		} else if (chosen_mode != mc->delivered.data.env_blend_mode) {
+			// TODO: account for the case of mixed ALPHA_BLEND and ADDITIVE
+			return XRT_BLEND_MODE_OPAQUE;
 		}
 	}
-	if (first_visible != NULL)
-		return first_visible->delivered.data.env_blend_mode;
+	if (chosen_mode != 0)
+		return chosen_mode;
+	// no visible clients
 	return XRT_BLEND_MODE_OPAQUE;
 }
 
