@@ -1,4 +1,4 @@
-// Copyright 2020-2022, Collabora, Ltd.
+// Copyright 2020-2024, Collabora, Ltd.
 // SPDX-License-Identifier: BSL-1.0
 
 plugins {
@@ -65,6 +65,9 @@ android {
     lint {
         fatal 'StopShip'
     }
+    buildFeatures {
+        viewBinding true
+    }
 }
 
 dependencies {
@@ -81,4 +84,15 @@ dependencies {
     // for Hilt dependency injection
     implementation "com.google.dagger:hilt-android:$hiltVersion"
     kapt "com.google.dagger:hilt-compiler:$hiltVersion"
+
+    // Google MLkit & Camera for QR code scanning
+    implementation "com.google.mlkit:barcode-scanning:$mlkitVersion"
+    implementation "androidx.camera:camera-core:$androidxCameraVersion"
+    implementation "androidx.camera:camera-camera2:$androidxCameraVersion"
+    implementation "androidx.camera:camera-lifecycle:$androidxCameraVersion"
+    implementation "androidx.camera:camera-video:$androidxCameraVersion"
+    implementation "androidx.camera:camera-view:$androidxCameraVersion"
+    implementation "androidx.camera:camera-extensions:$androidxCameraVersion"
+    implementation "androidx.camera:camera-mlkit-vision:$androidxCameraVersion"
+
 }

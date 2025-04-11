@@ -99,6 +99,10 @@
 #endif
 #endif
 
+#ifdef XRT_BUILD_DRIVER_CARDBOARD
+#include "cardboard/cardboard_interface.h"
+#endif
+
 
 /*!
  * Builders
@@ -222,6 +226,10 @@ xrt_auto_prober_create_func_t target_auto_list[] = {
 #ifdef XRT_BUILD_DRIVER_OHMD
     // OpenHMD almost as the end as we want to override it with native drivers.
     oh_create_auto_prober,
+#endif
+
+#ifdef XRT_BUILD_DRIVER_CARDBOARD
+    cardboard_create_auto_prober,
 #endif
 
 #ifdef XRT_BUILD_DRIVER_ANDROID

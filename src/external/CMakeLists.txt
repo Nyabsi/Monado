@@ -78,6 +78,18 @@ add_library(
 	)
 target_include_directories(xrt-external-nanopb PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/nanopb)
 
+if(ANDROID AND XRT_BUILD_DRIVER_CARDBOARD)
+	add_library(
+		xrt-external-cardboard STATIC cardboard/cardboard_device.pb.h
+					      cardboard/cardboard_device.pb.c
+		)
+
+	target_include_directories(
+		xrt-external-cardboard PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/cardboard/
+		)
+	target_link_libraries(xrt-external-cardboard PUBLIC xrt-external-nanopb)
+endif()
+
 # OpenXR
 add_library(xrt-external-openxr INTERFACE)
 target_include_directories(

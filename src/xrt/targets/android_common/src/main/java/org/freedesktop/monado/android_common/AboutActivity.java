@@ -1,15 +1,19 @@
-// Copyright 2020, Collabora, Ltd.
+// Copyright 2020-2024, Collabora, Ltd.
 // SPDX-License-Identifier: BSL-1.0
 /*!
  * @file
  * @brief  Simple main activity for Android.
  * @author Rylie Pavlik <rylie.pavlik@collabora.com>
+ * @author Simon Zeni <simon.zeni@collabora.com>
  */
 
 package org.freedesktop.monado.android_common;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.text.method.LinkMovementMethod;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -48,6 +52,8 @@ public class AboutActivity extends AppCompatActivity {
 
         // Default to dark mode universally?
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
+
+        setSupportActionBar(findViewById(R.id.toolbar));
 
         // Make our Monado link clickable
         ((TextView) findViewById(R.id.textPowered))
@@ -88,5 +94,21 @@ public class AboutActivity extends AppCompatActivity {
         }
 
         fragmentTransaction.commit();
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.menu_runtime, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId() == R.id.qrscan) {
+            Intent scanner = new Intent(AboutActivity.this, QrScannerActivity.class);
+            AboutActivity.this.startActivity(scanner);
+        }
+
+        return super.onOptionsItemSelected(item);
     }
 }

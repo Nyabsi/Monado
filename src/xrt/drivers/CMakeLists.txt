@@ -504,6 +504,21 @@ if(XRT_BUILD_SAMPLES)
 	target_link_libraries(drv_sample PRIVATE xrt-interfaces aux_util)
 endif()
 
+if(XRT_BUILD_DRIVER_CARDBOARD)
+	add_library(drv_cardboard STATIC cardboard/cardboard_prober.c cardboard/cardboard_hmd.c)
+	target_link_libraries(
+		drv_cardboard
+		PRIVATE
+			xrt-interfaces
+			aux_util
+			aux_os
+			aux_android
+			${ANDROID_LIBRARY}
+			xrt-external-cardboard
+		)
+	list(APPEND ENABLED_DRIVERS cardboard)
+endif()
+
 if(ENABLED_HEADSET_DRIVERS)
 	set(ENABLED_DRIVERS ${ENABLED_HEADSET_DRIVERS} ${ENABLED_DRIVERS})
 	list(SORT ENABLED_DRIVERS)
