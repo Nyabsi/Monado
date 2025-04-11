@@ -401,9 +401,21 @@ u_hand_sim_simulate_for_valve_index_knuckles(const struct u_hand_tracking_curl_v
 	struct u_hand_sim_hand hand;
 
 	hand_sim_hand_init(&hand, xhand, root_pose);
-	hand.wrist_pose.pose.position.x = 0.f;
-	hand.wrist_pose.pose.position.y = 0.f;
-	hand.wrist_pose.pose.position.z = 0.f;
+
+    //ORIENTATION OF HANDS WITH PALMS TO CENTER
+
+    //THIS is the vertical movement. it is opposite in each direction
+    //positive moves the hand ghost up
+    float superx = 0.04f;
+    if(hand.is_right)
+        hand.wrist_pose.pose.position.x = superx;
+    else
+        hand.wrist_pose.pose.position.x = superx * -1;
+    //movement in the normal of the palm. positive moves hand ghost out from the palm
+	hand.wrist_pose.pose.position.y = 0.02f;
+    //forward/away from player. old main finger fix (much less now)
+    //positive moves the hand ghost up the hand
+	hand.wrist_pose.pose.position.z = 0.01f;
 
 	hand.hand_size = 0.095;
 
