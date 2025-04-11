@@ -296,6 +296,9 @@ if(XRT_MODULE_COMPOSITOR_MAIN)
 		target_sources(comp_main PRIVATE main/comp_window_android.c)
 		target_link_libraries(comp_main PRIVATE aux_ogl aux_android)
 	endif()
+	if(XRT_FEATURE_AMDGPU_POWER_PROFILE)
+		target_link_libraries(comp_main PUBLIC aux_gpu_power_profile)
+	endif()
 endif()
 
 ###

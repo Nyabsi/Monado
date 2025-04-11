@@ -21,6 +21,9 @@ if(XRT_HAVE_D3D11 OR XRT_HAVE_D3D12)
 	add_subdirectory(d3d)
 endif()
 
+# GPU power profile library
+add_subdirectory(gpu_power_profile)
+
 # Math library.
 add_subdirectory(math)
 

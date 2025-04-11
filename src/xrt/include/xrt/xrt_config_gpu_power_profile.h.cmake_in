@@ -1,0 +1,4 @@
+// Copyright 2024 Patrick Nicolas
+// SPDX-License-Identifier: BSL-1.0
+
+#cmakedefine XRT_FEATURE_AMDGPU_POWER_PROFILE

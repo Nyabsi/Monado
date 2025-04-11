@@ -92,6 +92,9 @@
 #define WINDOW_TITLE "Monado"
 
 DEBUG_GET_ONCE_BOOL_OPTION(disable_deferred, "XRT_COMPOSITOR_DISABLE_DEFERRED", false)
+#ifdef XRT_FEATURE_AMDGPU_POWER_PROFILE
+DEBUG_GET_ONCE_BOOL_OPTION(set_gpu_pp, "XRT_COMPOSITOR_SET_POWER_PROFILE", false)
+#endif
 
 
 /*
@@ -155,6 +158,9 @@ compositor_begin_session(struct xrt_compositor *xc, const struct xrt_begin_sessi
 	}
 	// clang-format on
 
+#ifdef XRT_FEATURE_AMDGPU_POWER_PROFILE
+	gpu_power_profile_enable(c->gpu_pp);
+#endif
 	return XRT_SUCCESS;
 }
 
@@ -173,6 +179,10 @@ compositor_end_session(struct xrt_compositor *xc)
 #endif
 		comp_target_destroy(&c->target);
 	}
+
+#ifdef XRT_FEATURE_AMDGPU_POWER_PROFILE
+	gpu_power_profile_disable(c->gpu_pp);
+#endif
 
 	return XRT_SUCCESS;
 }
@@ -602,6 +612,9 @@ static const char *optional_device_extensions[] = {
 #endif
 #ifdef VK_KHR_synchronization2
     VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME,
+#endif
+#ifdef VK_EXT_physical_device_drm
+    VK_EXT_PHYSICAL_DEVICE_DRM_EXTENSION_NAME,
 #endif
 };
 
@@ -1187,6 +1200,13 @@ comp_main_create_system_compositor(struct xrt_device *xdev,
 	xrt_result_t xret = u_pa_factory_create(&upaf);
 	assert(xret == XRT_SUCCESS && upaf != NULL);
 	(void)xret;
+
+#ifdef XRT_FEATURE_AMDGPU_POWER_PROFILE
+	// GPU power profile
+	if (debug_get_bool_option_set_gpu_pp()) {
+		c->gpu_pp = gpu_power_profile_create(&c->base.vk);
+	}
+#endif
 
 	return comp_multi_create_system_compositor(&c->base.base, upaf, sys_info, !c->deferred_surface, out_xsysc);
 }

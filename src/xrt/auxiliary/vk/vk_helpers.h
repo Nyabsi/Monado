@@ -142,6 +142,7 @@ struct vk_bundle
 	bool has_EXT_external_memory_dma_buf;
 	bool has_EXT_global_priority;
 	bool has_EXT_image_drm_format_modifier;
+	bool has_EXT_physical_device_drm;
 	bool has_EXT_robustness2;
 	bool has_ANDROID_external_format_resolve;
 	bool has_GOOGLE_display_timing;
