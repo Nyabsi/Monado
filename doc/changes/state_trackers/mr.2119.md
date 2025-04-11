@@ -1,0 +1,1 @@
+implement XR_EXT_conformance_automation

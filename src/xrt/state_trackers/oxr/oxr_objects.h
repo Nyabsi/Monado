@@ -6,6 +6,7 @@
  * @brief  The objects representing OpenXR handles, and prototypes for internal functions used in the state tracker.
  * @author Jakob Bornecrantz <jakob@collabora.com>
  * @author Korcan Hussein <korcan.hussein@collabora.com>
+ * @author Simon Zeni <simon.zeni@collabora.com>
  * @ingroup oxr_main
  */
 
@@ -500,6 +501,17 @@ XrResult
 oxr_session_update_action_bindings(struct oxr_logger *log, struct oxr_session *sess);
 
 /*!
+ * Given an action act_key, look up the @ref oxr_action_attachment of the
+ * associated action in the given Session.
+ *
+ * @public @memberof oxr_session
+ */
+void
+oxr_session_get_action_attachment(struct oxr_session *sess,
+                                  uint32_t act_key,
+                                  struct oxr_action_attachment **out_act_attached);
+
+/*!
  * @public @memberof oxr_session
  */
 XrResult
@@ -576,6 +588,44 @@ oxr_action_stop_haptic_feedback(struct oxr_logger *log,
                                 uint32_t act_key,
                                 struct oxr_subaction_paths subaction_paths);
 
+bool
+oxr_automation_device_is_automated(struct xrt_device *xdev);
+
+XrResult
+oxr_automation_set_input_device_active(struct oxr_logger *log,
+                                       struct oxr_session *sess,
+                                       XrPath interactionProfile,
+                                       XrPath topLevelPath,
+                                       XrBool32 isActive);
+
+XrResult
+oxr_automation_set_input_device_state_boolean(
+    struct oxr_logger *log, struct oxr_session *sess, XrPath topLevelPath, XrPath inputSourcePath, XrBool32 state);
+
+XrResult
+oxr_automation_set_input_device_state_float(
+    struct oxr_logger *log, struct oxr_session *sess, XrPath topLevelPath, XrPath inputSourcePath, float state);
+
+XrResult
+oxr_automation_set_input_device_state_vec2(
+    struct oxr_logger *log, struct oxr_session *sess, XrPath topLevelPath, XrPath inputSourcePath, XrVector2f state);
+
+XrResult
+oxr_automation_set_input_device_location(struct oxr_logger *log,
+                                         struct oxr_session *sess,
+                                         XrPath topLevelPath,
+                                         XrPath inputSourcePath,
+                                         struct oxr_space *space,
+                                         struct xrt_pose pose);
+
+XrResult
+oxr_automation_locate_space(struct oxr_logger *log,
+                            struct oxr_space *space,
+                            struct oxr_space *base_space,
+                            uint64_t ts_ns,
+                            struct xrt_space_relation *out_relation);
+
+
 /*!
  * @public @memberof oxr_instance
  */
@@ -595,6 +645,17 @@ oxr_hand_tracker_create(struct oxr_logger *log,
  * @{
  *
  */
+
+/*!
+ * Return a subaction_path from a given XrPath
+ *
+ * @public @memberof oxr_instance
+ */
+bool
+oxr_get_subaction_path_from_path(struct oxr_logger *log,
+                                 struct oxr_instance *inst,
+                                 XrPath path,
+                                 enum oxr_subaction_path *out_subaction_path);
 
 /*!
  * Find the best matching profile for the given @ref xrt_device.
@@ -617,6 +678,14 @@ oxr_get_profile_for_device_name(struct oxr_logger *log,
                                 struct oxr_session *sess,
                                 enum xrt_device_name name,
                                 struct oxr_interaction_profile **out_p);
+/*!
+ * Find an interaction profile matching the given XrPath.
+ * If not found, a new interaction profile will be created
+ *
+ * @public @memberof oxr_instance
+ */
+struct oxr_interaction_profile *
+oxr_profile_get_or_create(struct oxr_logger *log, struct oxr_instance *inst, XrPath path);
 
 struct oxr_interaction_profile *
 oxr_clone_profile(const struct oxr_interaction_profile *src_profile);

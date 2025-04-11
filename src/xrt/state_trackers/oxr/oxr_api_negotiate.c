@@ -275,6 +275,14 @@ handle_non_null(struct oxr_instance *inst, struct oxr_logger *log, const char *n
 	ENTRY_IF_EXT(xrPassthroughStartFB, FB_passthrough);
 #endif // OXR_HAVE_FB_passthrough
 
+#ifdef OXR_HAVE_EXT_conformance_automation
+	ENTRY_IF_EXT(xrSetInputDeviceActiveEXT, EXT_conformance_automation);
+	ENTRY_IF_EXT(xrSetInputDeviceStateBoolEXT, EXT_conformance_automation);
+	ENTRY_IF_EXT(xrSetInputDeviceStateFloatEXT, EXT_conformance_automation);
+	ENTRY_IF_EXT(xrSetInputDeviceStateVector2fEXT, EXT_conformance_automation);
+	ENTRY_IF_EXT(xrSetInputDeviceLocationEXT, EXT_conformance_automation);
+#endif
+
 #ifdef OXR_HAVE_EXT_debug_utils
 	ENTRY_IF_EXT(xrSetDebugUtilsObjectNameEXT, EXT_debug_utils);
 	ENTRY_IF_EXT(xrCreateDebugUtilsMessengerEXT, EXT_debug_utils);

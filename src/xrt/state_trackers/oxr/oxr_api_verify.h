@@ -302,6 +302,15 @@ struct oxr_subaction_paths;
 		}                                                                                                      \
 	} while (false)
 
+#define OXR_VERIFY_INSTANCE_PATH(log, inst, path)                                                                      \
+	do {                                                                                                           \
+		if (path == XR_NULL_PATH) {                                                                            \
+			return oxr_error(log, XR_ERROR_PATH_INVALID, #path " is null");                                \
+		} else if (!oxr_path_is_valid(log, inst, path)) {                                                      \
+			return oxr_error(log, XR_ERROR_PATH_INVALID, #path " is not valid");                           \
+		}                                                                                                      \
+	} while (false)
+
 /*
  *
  * Implementation in oxr_verify.cpp
