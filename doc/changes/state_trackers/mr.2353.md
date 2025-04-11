@@ -1,4 +1,4 @@
 ---
 - mr.2353
 ---
-- Update OpenXR headers to 1.1.42.
+- OpenXR Improvement: Update OpenXR headers to 1.1.42.
