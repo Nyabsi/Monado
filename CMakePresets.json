@@ -2,25 +2,27 @@
     "version": 3,
     "cmakeMinimumRequired": {
         "major": 3,
-        "minor": 21,
+        "minor": 22,
         "patch": 0
     },
+
     "configurePresets": [
-        {
-            "name": "default",
-            "inherits": "service-debug",
-            "displayName": "Default (same as service-debug)"
-        },
-        {
-            "name": ".base-ninja",
-            "generator": "Ninja",
+		{
+			"name": "base",
+			"generator": "Ninja",
             "hidden": true,
-            "binaryDir": "${sourceDir}/build"
-        },
+            "binaryDir": "${sourceDir}/build",
+			"cacheVariables": {
+                "CMAKE_TOOLCHAIN_FILE": {
+                    "type": "PATH",
+                    "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+                }
+			}
+		},
         {
             "name": "service-debug",
             "displayName": "Debug service",
-            "inherits": ".base-ninja",
+            "inherits": "base",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
                 "XRT_FEATURE_SERVICE": "ON"
@@ -29,7 +31,7 @@
         {
             "name": "service-debug-asan",
             "displayName": "Debug service with sanitizers",
-            "inherits": "service-debug",
+            "inherits": "base",
             "cacheVariables": {
                 "SANITIZE_ADDRESS": "ON",
                 "SANITIZE_UNDEFINED": "ON"
@@ -38,7 +40,7 @@
         {
             "name": "inproc-debug",
             "displayName": "Debug in-process",
-            "inherits": ".base-ninja",
+            "inherits": "base",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
                 "XRT_FEATURE_SERVICE": "OFF"
@@ -47,9 +49,10 @@
         {
             "name": "service-release",
             "displayName": "Release service",
-            "inherits": "service-debug",
+            "inherits": "base",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
+				"XRT_FEATURE_SERVICE": "ON",
                 "BUILD_DOC": "ON",
                 "BUILD_DOC_EXTRACT_ALL": "ON"
             }
@@ -57,9 +60,10 @@
         {
             "name": "inproc-release",
             "displayName": "Release in-process",
-            "inherits": "inproc-debug",
+            "inherits": "base",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
+				"XRT_FEATURE_SERVICE": "OFF",
                 "BUILD_DOC": "ON",
                 "BUILD_DOC_EXTRACT_ALL": "ON"
             }
@@ -67,17 +71,19 @@
         {
             "name": "service-relwithdebinfo",
             "displayName": "RelWithDebInfo service",
-            "inherits": "service-debug",
+            "inherits": "base",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+				"XRT_FEATURE_SERVICE": "ON"
             }
         },
         {
             "name": "inproc-relwithdebinfo",
             "displayName": "RelWithDebInfo in-process",
-            "inherits": "inproc-debug",
+            "inherits": "base",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+				"XRT_FEATURE_SERVICE": "OFF"
             }
         }
     ],
@@ -85,7 +91,7 @@
         {
             "name": "default",
             "displayName": "Build and install",
-            "configurePreset": "default",
+            "configurePreset": "service-debug",
             "targets": "install"
         }
     ]
