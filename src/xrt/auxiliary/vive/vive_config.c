@@ -401,7 +401,7 @@ _calculate_fov(struct vive_config *d)
  */
 
 bool
-vive_config_parse(struct vive_config *d, char *json_string, enum u_logging_level log_level)
+vive_config_parse(struct vive_config *d, const char *json_string, enum u_logging_level log_level)
 {
 	d->log_level = log_level;
 	vive_init_defaults(d);

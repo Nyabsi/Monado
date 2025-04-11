@@ -34,7 +34,9 @@ extern "C" {
  * @ingroup drv_steamvr_lh
  */
 enum xrt_result
-steamvr_lh_create_devices(struct xrt_system_devices **out_xsysd);
+steamvr_lh_create_devices(struct xrt_system_devices **out_xsysd,
+                          struct vive_config *out_hmd_config,
+                          bool *out_found_controllers);
 
 
 #ifdef __cplusplus

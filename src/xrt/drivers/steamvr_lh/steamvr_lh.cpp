@@ -30,6 +30,7 @@
 #include "util/u_device.h"
 
 #include "math/m_api.h"
+#include "vive/vive_config.h"
 
 namespace {
 
@@ -742,19 +743,24 @@ destroy(struct xrt_system_devices *xsysd)
 }
 
 extern "C" enum xrt_result
-steamvr_lh_create_devices(struct xrt_system_devices **out_xsysd)
+steamvr_lh_create_devices(struct xrt_system_devices **out_xsysd,
+                          vive_config *out_hmd_config,
+                          bool *out_found_controllers)
 {
 	u_logging_level level = debug_get_log_option_lh_log();
 	// The driver likes to create a bunch of transient folders -
 	// let's try to make sure they're created where they normally are.
-	std::filesystem::path dir = STEAM_INSTALL_DIR + "/config/lighthouse";
-	if (!std::filesystem::exists(dir)) {
+	std::filesystem::path lighthouse_config_dir = STEAM_INSTALL_DIR + "/config/lighthouse";
+	if (!std::filesystem::exists(lighthouse_config_dir)) {
 		U_LOG_IFL_W(level,
 		            "Couldn't find lighthouse config folder (%s)- transient folders will be created in current "
 		            "working directory (%s)",
-		            dir.c_str(), std::filesystem::current_path().c_str());
+		            lighthouse_config_dir.c_str(), std::filesystem::current_path().c_str());
+
+		// Mark the dir with the lighthouse configs as the current working dir
+		lighthouse_config_dir = std::filesystem::current_path();
 	} else {
-		std::filesystem::current_path(dir);
+		std::filesystem::current_path(lighthouse_config_dir);
 	}
 
 	std::string steamvr{};
@@ -825,23 +831,58 @@ steamvr_lh_create_devices(struct xrt_system_devices **out_xsysd)
 		return xrt_result::XRT_ERROR_DEVICE_CREATION_FAILED;
 	}
 
+	if (out_found_controllers == NULL) {
+		U_LOG_IFL_E(level, "Invalid output found controllers pointer");
+		return xrt_result::XRT_ERROR_DEVICE_CREATION_FAILED;
+	}
+
+	if (out_hmd_config == NULL) {
+		U_LOG_IFL_E(level, "Invalid output hmd config pointer");
+		return xrt_result::XRT_ERROR_DEVICE_CREATION_FAILED;
+	}
+
 	struct xrt_system_devices *xsysd = NULL;
 	xsysd = &svrs->base;
 
 	xsysd->destroy = destroy;
 	xsysd->get_roles = get_roles;
 
+	memset(out_hmd_config, 0, sizeof(*out_hmd_config));
+	out_hmd_config->log_level = level;
+
 	// Include the HMD
 	if (svrs->ctx->hmd) {
+		std::string serial = svrs->ctx->hmd->serial;
+		std::transform(serial.begin(), serial.end(), serial.begin(),
+		               [](unsigned char c) { return std::tolower(c); });
+
+		auto device_config_path = lighthouse_config_dir / serial / "config.json";
+
+		if (std::filesystem::exists(device_config_path)) {
+			std::ifstream t(device_config_path);
+			std::stringstream buffer;
+			buffer << t.rdbuf();
+
+			if (!vive_config_parse(out_hmd_config, buffer.str().c_str(), level)) {
+				U_LOG_IFL_E(level, "Invalid HMD config file");
+				return xrt_result::XRT_ERROR_DEVICE_CREATION_FAILED;
+			}
+		} else {
+			U_LOG_IFL_E(level, "Lighthouse device config file for %s missing! checked path %s\n",
+			            svrs->ctx->hmd->serial, device_config_path.c_str());
+		}
+
 		// Always have a head at index 0 and iterate dev count.
 		xsysd->xdevs[xsysd->xdev_count] = svrs->ctx->hmd;
 		xsysd->static_roles.head = xsysd->xdevs[xsysd->xdev_count++];
 	}
 
+	*out_found_controllers = false;
 	// Include the controllers
 	for (size_t i = 0; i < MAX_CONTROLLERS; i++) {
 		if (svrs->ctx->controller[i]) {
 			xsysd->xdevs[xsysd->xdev_count++] = svrs->ctx->controller[i];
+			*out_found_controllers = true;
 		}
 	}
 

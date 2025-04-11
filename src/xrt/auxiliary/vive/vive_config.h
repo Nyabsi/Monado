@@ -261,7 +261,7 @@ struct vive_controller_config
  * @ingroup aux_vive
  */
 bool
-vive_config_parse(struct vive_config *d, char *json_string, enum u_logging_level log_level);
+vive_config_parse(struct vive_config *d, const char *json_string, enum u_logging_level log_level);
 
 /*!
  * Free any allocated resources on this config.
