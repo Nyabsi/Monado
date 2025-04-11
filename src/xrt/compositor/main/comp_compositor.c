@@ -65,6 +65,7 @@
 #include "util/comp_vulkan.h"
 #include "main/comp_compositor.h"
 #include "main/comp_frame.h"
+#include "xrt/xrt_session.h"
 
 #ifdef XRT_FEATURE_WINDOW_PEEK
 #include "main/comp_window_peek.h"
@@ -982,6 +983,7 @@ compositor_init_renderer(struct comp_compositor *c)
 
 xrt_result_t
 comp_main_create_system_compositor(struct xrt_device *xdev,
+                                   struct xrt_session_event_sink *xses,
                                    const struct comp_target_factory *ctf,
                                    struct xrt_system_compositor **out_xsysc)
 {
@@ -1012,7 +1014,7 @@ comp_main_create_system_compositor(struct xrt_device *xdev,
 	}
 
 	// Do this as early as possible.
-	comp_base_init(&c->base);
+	comp_base_init(&c->base, xses);
 
 	// Init the settings to default.
 	comp_settings_init(&c->settings, xdev);

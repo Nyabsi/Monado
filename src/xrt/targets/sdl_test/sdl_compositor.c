@@ -1,4 +1,4 @@
-// Copyright 2019-2023, Collabora, Ltd.
+// Copyright 2019-2024, Collabora, Ltd.
 // SPDX-License-Identifier: BSL-1.0
 /*!
  * @file
@@ -515,7 +515,7 @@ sdl_compositor_destroy(struct xrt_compositor *xc)
  */
 
 void
-sdl_compositor_init(struct sdl_program *sp)
+sdl_compositor_init(struct sdl_program *sp, struct xrt_session_event_sink *xses)
 {
 	struct xrt_device *xdev = &sp->xdev_base;
 	enum u_logging_level log_level = sp->log_level;
@@ -540,12 +540,12 @@ sdl_compositor_init(struct sdl_program *sp)
 	SC_DEBUG(c, "Doing init %p", (void *)c);
 
 	// Do this as early as possible
-	comp_base_init(&c->base);
+	comp_base_init(&c->base, xses);
+
 
 	// Override some comp_base functions.
 	iface->create_swapchain = sdl_swapchain_create;
 	iface->import_swapchain = sdl_swapchain_import;
-
 
 	/*
 	 * Main init sequence.

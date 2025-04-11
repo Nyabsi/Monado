@@ -21,6 +21,7 @@ extern "C" {
 
 struct xrt_device;
 struct xrt_system_compositor;
+struct xrt_session_event_sink;
 
 /*!
  * Creates a @ref null_compositor.
@@ -28,7 +29,9 @@ struct xrt_system_compositor;
  * @ingroup comp_null
  */
 xrt_result_t
-null_compositor_create_system(struct xrt_device *xdev, struct xrt_system_compositor **out_xsysc);
+null_compositor_create_system(struct xrt_device *xdev,
+                              struct xrt_session_event_sink *xses,
+                              struct xrt_system_compositor **out_xsysc);
 
 
 #ifdef __cplusplus

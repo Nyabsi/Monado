@@ -1,4 +1,4 @@
-// Copyright 2020-2023, Collabora, Ltd.
+// Copyright 2020-2024, Collabora, Ltd.
 // SPDX-License-Identifier: BSL-1.0
 /*!
  * @file
@@ -338,7 +338,7 @@ sdl_swapchain_import(struct xrt_compositor *xc,
  * @ingroup sdl_test
  */
 void
-sdl_compositor_init(struct sdl_program *sp);
+sdl_compositor_init(struct sdl_program *sp, struct xrt_session_event_sink *xses);
 
 /*!
  * Creates the system compositor that wraps the native compositor.
