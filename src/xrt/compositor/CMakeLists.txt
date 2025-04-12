@@ -156,6 +156,8 @@ if(XRT_HAVE_VULKAN)
 		util/comp_scratch.h
 		util/comp_semaphore.h
 		util/comp_semaphore.c
+		util/comp_swapchain_waiting.h
+		util/comp_swapchain_waiting.c
 		util/comp_swapchain.h
 		util/comp_swapchain.c
 		util/comp_sync.h

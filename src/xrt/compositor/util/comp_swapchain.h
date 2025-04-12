@@ -1,10 +1,12 @@
-// Copyright 2019-2023, Collabora, Ltd.
+// Copyright 2019-2024, Collabora, Ltd.
 // SPDX-License-Identifier: BSL-1.0
 /*!
  * @file
  * @brief  Independent swapchain implementation.
  * @author Jakob Bornecrantz <jakob@collabora.com>
  * @author Lubosz Sarnecki <lubosz.sarnecki@collabora.com>
+ * @author Christoph Haag <christoph.haag@collabora.com>
+ * @author Korcan Hussein <korcan.hussein@collabora.com>
  * @ingroup comp_util
  */
 
@@ -16,6 +18,7 @@
 #include "util/u_threading.h"
 #include "util/u_index_fifo.h"
 
+#include "util/comp_swapchain_waiting.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -64,15 +67,6 @@ struct comp_swapchain_image
 	} views;
 	//! The number of array slices in a texture, 1 == regular 2D texture.
 	size_t array_size;
-
-	//! A usage counter, similar to a reference counter.
-	uint32_t use_count;
-
-	//! A condition variable per swapchain image that is notified when @ref use_count count reaches 0.
-	pthread_cond_t use_cond;
-
-	//! A mutex per swapchain image that is used with @ref use_cond.
-	struct os_mutex use_mutex;
 };
 
 /*!
@@ -91,6 +85,8 @@ struct comp_swapchain_image
 struct comp_swapchain
 {
 	struct xrt_swapchain_native base;
+
+	struct comp_swapchain_waiting waiting;
 
 	struct vk_bundle *vk;
 	struct comp_swapchain_shared *cscs;

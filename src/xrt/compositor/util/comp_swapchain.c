@@ -1,9 +1,11 @@
-// Copyright 2019-2023, Collabora, Ltd.
+// Copyright 2019-2024, Collabora, Ltd.
 // SPDX-License-Identifier: BSL-1.0
 /*!
  * @file
  * @brief  Independent swapchain implementation.
  * @author Jakob Bornecrantz <jakob@collabora.com>
+ * @author Christoph Haag <christoph.haag@collabora.com>
+ * @author Korcan Hussein <korcan.hussein@collabora.com>
  * @ingroup comp_util
  */
 
@@ -65,137 +67,21 @@ static xrt_result_t
 swapchain_inc_image_use(struct xrt_swapchain *xsc, uint32_t index)
 {
 	struct comp_swapchain *sc = comp_swapchain(xsc);
-
-	SWAPCHAIN_TRACE_BEGIN(swapchain_inc_image_use);
-
-	VK_TRACE(sc->vk, "%p INC_IMAGE %d (use %d)", (void *)sc, index, sc->images[index].use_count);
-
-	os_mutex_lock(&sc->images[index].use_mutex);
-	sc->images[index].use_count++;
-	os_mutex_unlock(&sc->images[index].use_mutex);
-
-	SWAPCHAIN_TRACE_END(swapchain_inc_image_use);
-
-	return XRT_SUCCESS;
+	return comp_swapchain_waiting_inc_image_use(&sc->waiting, index);
 }
 
 static xrt_result_t
 swapchain_dec_image_use(struct xrt_swapchain *xsc, uint32_t index)
 {
 	struct comp_swapchain *sc = comp_swapchain(xsc);
-
-	SWAPCHAIN_TRACE_BEGIN(swapchain_dec_image_use);
-
-	VK_TRACE(sc->vk, "%p DEC_IMAGE %d (use %d)", (void *)sc, index, sc->images[index].use_count);
-
-	os_mutex_lock(&sc->images[index].use_mutex);
-
-	assert(sc->images[index].use_count > 0 && "use count already 0");
-
-	sc->images[index].use_count--;
-	if (sc->images[index].use_count == 0) {
-		os_mutex_unlock(&sc->images[index].use_mutex);
-		pthread_cond_broadcast(&sc->images[index].use_cond);
-	}
-
-	os_mutex_unlock(&sc->images[index].use_mutex);
-
-	SWAPCHAIN_TRACE_END(swapchain_dec_image_use);
-
-	return XRT_SUCCESS;
+	return comp_swapchain_waiting_dec_image_use(&sc->waiting, index);
 }
 
 static xrt_result_t
 swapchain_wait_image(struct xrt_swapchain *xsc, int64_t timeout_ns, uint32_t index)
 {
 	struct comp_swapchain *sc = comp_swapchain(xsc);
-
-	SWAPCHAIN_TRACE_BEGIN(swapchain_wait_image);
-
-	VK_TRACE(sc->vk, "%p WAIT_IMAGE %d (use %d)", (void *)sc, index, sc->images[index].use_count);
-
-	os_mutex_lock(&sc->images[index].use_mutex);
-
-	if (sc->images[index].use_count == 0) {
-		VK_TRACE(sc->vk, "%p WAIT_IMAGE %d: NO WAIT", (void *)sc, index);
-		os_mutex_unlock(&sc->images[index].use_mutex);
-		SWAPCHAIN_TRACE_END(swapchain_wait_image);
-		return XRT_SUCCESS;
-	}
-
-	// on windows pthread_cond_timedwait can not be used with monotonic time
-	int64_t start_wait_rt = os_realtime_get_ns();
-
-	int64_t end_wait_rt;
-	// don't wrap on big or indefinite timeout
-	if (start_wait_rt > INT64_MAX - timeout_ns) {
-		end_wait_rt = INT64_MAX;
-	} else {
-		end_wait_rt = start_wait_rt + timeout_ns;
-	}
-
-	struct timespec spec;
-	os_ns_to_timespec(end_wait_rt, &spec);
-
-	VK_TRACE(sc->vk, "%p WAIT_IMAGE %d (use %d) start wait at: %" PRIu64 " (timeout at %" PRIu64 ")", (void *)sc,
-	         index, sc->images[index].use_count, start_wait_rt, end_wait_rt);
-
-	int ret = 0;
-	while (sc->images[index].use_count > 0) {
-		// use pthread_cond_timedwait to implement timeout behavior
-		ret = pthread_cond_timedwait(&sc->images[index].use_cond, &sc->images[index].use_mutex.mutex, &spec);
-
-		int64_t now_rt = os_realtime_get_ns();
-		double diff = time_ns_to_ms_f(now_rt - start_wait_rt);
-
-		if (ret == 0) {
-
-			if (sc->images[index].use_count == 0) {
-				// image became available within timeout limits
-				VK_TRACE(sc->vk, "%p WAIT_IMAGE %d: success at %" PRIu64 " after %fms", (void *)sc,
-				         index, now_rt, diff);
-				os_mutex_unlock(&sc->images[index].use_mutex);
-				SWAPCHAIN_TRACE_END(swapchain_wait_image);
-				return XRT_SUCCESS;
-			}
-			// cond got signaled but image is still in use, continue waiting
-			VK_TRACE(sc->vk, "%p WAIT_IMAGE %d: woken at %" PRIu64 " after %fms but still (%d use)",
-			         (void *)sc, index, now_rt, diff, sc->images[index].use_count);
-			continue;
-		}
-
-		if (ret == ETIMEDOUT) {
-			VK_TRACE(sc->vk, "%p WAIT_IMAGE %d (use %d): timeout at %" PRIu64 " after %fms", (void *)sc,
-			         index, sc->images[index].use_count, now_rt, diff);
-
-			if (now_rt >= end_wait_rt) {
-				// image did not become available within timeout limits
-				VK_TRACE(sc->vk, "%p WAIT_IMAGE %d (use %d): timeout (%" PRIu64 " > %" PRIu64 ")",
-				         (void *)sc, index, sc->images[index].use_count, now_rt, end_wait_rt);
-				os_mutex_unlock(&sc->images[index].use_mutex);
-				SWAPCHAIN_TRACE_END(swapchain_wait_image);
-				return XRT_TIMEOUT;
-			}
-			// spurious cond wakeup
-			VK_TRACE(sc->vk, "%p WAIT_IMAGE %d (use %d): spurious timeout at %" PRIu64 " (%fms to timeout)",
-			         (void *)sc, index, sc->images[index].use_count, now_rt,
-			         time_ns_to_ms_f(end_wait_rt - now_rt));
-			continue;
-		}
-
-		// if no other case applied
-		VK_TRACE(sc->vk, "%p WAIT_IMAGE %d: condition variable error %d", (void *)sc, index, ret);
-		os_mutex_unlock(&sc->images[index].use_mutex);
-		SWAPCHAIN_TRACE_END(swapchain_wait_image);
-		return XRT_ERROR_VULKAN;
-	}
-
-	VK_TRACE(sc->vk, "%p WAIT_IMAGE %d: became available before spurious wakeup %d", (void *)sc, index, ret);
-
-	os_mutex_unlock(&sc->images[index].use_mutex);
-	SWAPCHAIN_TRACE_END(swapchain_wait_image);
-
-	return XRT_SUCCESS;
+	return comp_swapchain_waiting_wait_image(&sc->waiting, timeout_ns, index);
 }
 
 static xrt_result_t
@@ -433,24 +319,7 @@ do_post_create_vulkan_setup(struct vk_bundle *vk,
 	VK_CHK_WITH_GOTO(ret, "vk_cmd_pool_end_submit_wait_and_free_cmd_buffer_locked", error);
 
 	// Init all of the threading objects.
-	for (uint32_t i = 0; i < image_count; i++) {
-
-		ret = pthread_cond_init(&sc->images[i].use_cond, NULL);
-		if (ret) {
-			VK_ERROR(sc->vk, "Failed to init image use cond: %d", ret);
-			xret = XRT_ERROR_THREADING_INIT_FAILURE;
-			continue;
-		}
-
-		ret = os_mutex_init(&sc->images[i].use_mutex);
-		if (ret) {
-			VK_ERROR(sc->vk, "Failed to init image use mutex: %d", ret);
-			xret = XRT_ERROR_THREADING_INIT_FAILURE;
-			continue;
-		}
-
-		sc->images[i].use_count = 0;
-	}
+	comp_swapchain_waiting_init(&sc->waiting, vk->log_level, image_count);
 
 	if (xret != XRT_SUCCESS) {
 		cleanup_post_create_vulkan_setup(vk, sc);
@@ -594,17 +463,7 @@ comp_swapchain_teardown(struct comp_swapchain *sc)
 
 	VK_TRACE(vk, "REALLY DESTROY");
 
-	for (uint32_t i = 0; i < sc->base.base.image_count; i++) {
-		// compositor ensures to garbage collect after gpu work finished
-		if (sc->images[i].use_count != 0) {
-			VK_ERROR(vk, "swapchain destroy while image %d use count %d", i, sc->images[i].use_count);
-			assert(false);
-			continue; // leaking better than crashing?
-		}
-
-		os_mutex_destroy(&sc->images[i].use_mutex);
-		pthread_cond_destroy(&sc->images[i].use_cond);
-	}
+	comp_swapchain_waiting_fini(&sc->waiting);
 
 	for (uint32_t i = 0; i < sc->base.base.image_count; i++) {
 		image_cleanup(vk, &sc->images[i]);
