@@ -30,6 +30,10 @@
 
 #include <xrt/xrt_handles.h>
 
+#ifdef XRT_GRAPHICS_BUFFER_HANDLE_IS_AHARDWAREBUFFER
+#include <android/hardware_buffer.h>
+#endif
+
 
 /*
  *
@@ -1064,6 +1068,210 @@ err_image:
 	return ret;
 }
 
+#ifdef XRT_GRAPHICS_BUFFER_HANDLE_IS_AHARDWAREBUFFER
+static VkResult
+create_image_from_ahb(struct vk_bundle *vk,
+                      const struct xrt_swapchain_create_info *info,
+                      struct xrt_image_native *image_native,
+                      VkImage *out_image,
+                      VkDeviceMemory *out_mem)
+{
+	VkFormat format = (VkFormat)info->format;
+
+	/*
+	 * Some Vulkan drivers will natively support importing and exporting
+	 * SRGB formats (Qualcomm Adreno) even though technically the
+	 * AHardwareBuffer support for sRGB is... awkward (not inherent).
+	 * While others (arm Mali) does not support importing and exporting
+	 * sRGB formats. So we need to create the image without sRGB and
+	 * then create the image views with sRGB which is allowed by the
+	 * Vulkan spec. It seems to be safe to do with on all drivers,
+	 * so to reduce the logic do that instead.
+	 */
+	if (format == VK_FORMAT_R8G8B8A8_SRGB) {
+		format = VK_FORMAT_R8G8B8A8_UNORM;
+	}
+
+	AHardwareBuffer_Desc ahb_desc = {0};
+	AHardwareBuffer_describe(image_native->handle, &ahb_desc);
+
+	VkPhysicalDeviceExternalImageFormatInfo external_image_format_info = {
+	    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_IMAGE_FORMAT_INFO,
+	    .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_ANDROID_HARDWARE_BUFFER_BIT_ANDROID,
+	};
+
+	VkPhysicalDeviceImageFormatInfo2 format_info = {
+	    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_FORMAT_INFO_2,
+	    .pNext = &external_image_format_info,
+	    .format = format,
+	    .type = VK_IMAGE_TYPE_2D,
+	    .tiling = VK_IMAGE_TILING_OPTIMAL,
+	};
+
+	if (ahb_desc.usage & AHARDWAREBUFFER_USAGE_GPU_SAMPLED_IMAGE) {
+		format_info.usage |= (VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT);
+	}
+
+	if (ahb_desc.usage & AHARDWAREBUFFER_USAGE_GPU_FRAMEBUFFER) {
+		/*
+		 * Drivers may return VK_ERROR_FORMAT_NOT_SUPPORTED if the depth stencil usage flag is there for a
+		 * color format.
+		 */
+		switch (ahb_desc.format) {
+		case AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM:
+		case AHARDWAREBUFFER_FORMAT_R8G8B8X8_UNORM:
+		case AHARDWAREBUFFER_FORMAT_R8G8B8_UNORM:
+		case AHARDWAREBUFFER_FORMAT_R5G6B5_UNORM:
+		case AHARDWAREBUFFER_FORMAT_R16G16B16A16_FLOAT:
+		case AHARDWAREBUFFER_FORMAT_R10G10B10A2_UNORM:
+			format_info.usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+			break;
+		case AHARDWAREBUFFER_FORMAT_D16_UNORM:
+		case AHARDWAREBUFFER_FORMAT_D24_UNORM:
+		case AHARDWAREBUFFER_FORMAT_D24_UNORM_S8_UINT:
+		case AHARDWAREBUFFER_FORMAT_D32_FLOAT:
+		case AHARDWAREBUFFER_FORMAT_D32_FLOAT_S8_UINT:
+		case AHARDWAREBUFFER_FORMAT_S8_UINT:
+			format_info.usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+			break;
+		default: VK_WARN(vk, "Format not handled, attachment bit is not set"); break;
+		}
+	}
+	if (ahb_desc.usage & AHARDWAREBUFFER_USAGE_GPU_CUBE_MAP) {
+		format_info.flags |= VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
+	}
+
+	if (ahb_desc.usage & AHARDWAREBUFFER_USAGE_PROTECTED_CONTENT) {
+		format_info.flags |= VK_IMAGE_CREATE_PROTECTED_BIT;
+	}
+
+	VkExternalImageFormatProperties external_format_props = {
+	    .sType = VK_STRUCTURE_TYPE_EXTERNAL_IMAGE_FORMAT_PROPERTIES,
+	};
+
+	VkImageFormatProperties2 format_props = {
+	    .sType = VK_STRUCTURE_TYPE_IMAGE_FORMAT_PROPERTIES_2,
+
+	    .pNext = &external_format_props,
+	};
+
+	VkResult ret = vk->vkGetPhysicalDeviceImageFormatProperties2(vk->physical_device, &format_info, &format_props);
+	if (ret != VK_SUCCESS) {
+		VK_ERROR(vk, "vkGetPhysicalDeviceImageFormatProperties2: %s", vk_result_string(ret));
+		if (ret == VK_ERROR_FORMAT_NOT_SUPPORTED) {
+			VK_ERROR(vk, "VkFormat %d AHB format %d", format_info.format, ahb_desc.format);
+		}
+		return ret;
+	}
+
+	if ((external_format_props.externalMemoryProperties.externalMemoryFeatures &
+	     VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT) == 0) {
+		VK_ERROR(vk, "Cannot import external AHardwareBuffer");
+		return VK_ERROR_INITIALIZATION_FAILED;
+	}
+
+	VkAndroidHardwareBufferFormatPropertiesANDROID ahb_format_props = {
+	    .sType = VK_STRUCTURE_TYPE_ANDROID_HARDWARE_BUFFER_FORMAT_PROPERTIES_ANDROID,
+	};
+
+	VkAndroidHardwareBufferPropertiesANDROID ahb_props = {
+	    .sType = VK_STRUCTURE_TYPE_ANDROID_HARDWARE_BUFFER_PROPERTIES_ANDROID,
+	    .pNext = &ahb_format_props,
+	};
+
+	ret = vk->vkGetAndroidHardwareBufferPropertiesANDROID(vk->device, image_native->handle, &ahb_props);
+	if (ret != VK_SUCCESS) {
+		VK_ERROR(vk, "vkGetAndroidHardwareBufferPropertiesANDROID: %s", vk_result_string(ret));
+		return ret;
+	}
+
+	// If the AHardwareBufferFormat has not Vulkan equivalent, it's set to VK_FORMAT_UNDEFINED
+	const bool use_external = ahb_format_props.format == VK_FORMAT_UNDEFINED;
+
+	VkExternalFormatANDROID external_format = {
+	    .sType = VK_STRUCTURE_TYPE_EXTERNAL_FORMAT_ANDROID,
+	    // TODO: check for for internal formats, must be 0 if so
+	    .externalFormat = (use_external ? ahb_format_props.externalFormat : 0),
+	};
+
+	VkExternalMemoryImageCreateInfoKHR external_memory_image_info = {
+	    .sType = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO_KHR,
+	    .pNext = &external_format,
+	    .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_ANDROID_HARDWARE_BUFFER_BIT_ANDROID,
+	};
+
+	// Reuse the previously translated flags and usage
+	VkImageCreateFlags flags = format_info.flags;
+	VkImageUsageFlags usage = format_info.usage;
+
+	// VUID-VkImageViewCreateInfo-image-01762
+	if (format != (VkFormat)info->format) {
+		flags |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
+	}
+
+	VkImageCreateInfo image_info = {
+	    .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+	    .pNext = &external_memory_image_info,
+	    .flags = flags,
+	    .imageType = VK_IMAGE_TYPE_2D,
+	    .format = (use_external ? VK_FORMAT_UNDEFINED : format),
+	    .extent = {.width = info->width, .height = info->height, .depth = 1},
+	    .mipLevels = info->mip_count,
+	    .arrayLayers = info->array_size,
+	    .samples = VK_SAMPLE_COUNT_1_BIT,
+	    .tiling = VK_IMAGE_TILING_OPTIMAL,
+	    .usage = usage,
+	    .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+	    .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+	};
+
+	VkImage image = VK_NULL_HANDLE;
+	ret = vk->vkCreateImage(vk->device, &image_info, NULL, &image);
+	if (ret != VK_SUCCESS) {
+		VK_ERROR(vk, "vkCreateImage: %s", vk_result_string(ret));
+		return ret;
+	}
+
+	VkImportAndroidHardwareBufferInfoANDROID ahb_import_info = {
+	    .sType = VK_STRUCTURE_TYPE_IMPORT_ANDROID_HARDWARE_BUFFER_INFO_ANDROID,
+	    .buffer = image_native->handle,
+	};
+
+	VkMemoryDedicatedAllocateInfoKHR dedicated_memory_info = {
+	    .sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO_KHR,
+	    .pNext = &ahb_import_info,
+	    .image = image,
+	    .buffer = VK_NULL_HANDLE,
+	};
+
+	VkMemoryRequirements requirements = {
+	    .size = ahb_props.allocationSize,
+	    .memoryTypeBits = ahb_props.memoryTypeBits,
+	};
+	ret = vk_alloc_and_bind_image_memory( //
+	    vk,                               // vk_bundle
+	    image,                            // image
+	    &requirements,                    // max_size
+	    &dedicated_memory_info,           // pNext_for_allocate
+	    __func__,                         // caller_name
+	    out_mem);                         // out_mem
+
+	// Android needs explicit unref
+	u_graphics_buffer_unref(&image_native->handle);
+
+	if (ret != VK_SUCCESS) {
+		// Clean up image
+		vk->vkDestroyImage(vk->device, image, NULL);
+		return ret;
+	}
+
+	*out_image = image;
+
+	return ret;
+}
+#endif
+
+
 // - vk_csci_get_image_external_handle_type (usually but not always a constant)
 // - vk_csci_get_image_external_support
 //   - vkGetPhysicalDeviceImageFormatProperties2
@@ -1078,6 +1286,10 @@ vk_create_image_from_native(struct vk_bundle *vk,
                             VkImage *out_image,
                             VkDeviceMemory *out_mem)
 {
+#ifdef XRT_GRAPHICS_BUFFER_HANDLE_IS_AHARDWAREBUFFER
+	return create_image_from_ahb(vk, info, image_native, out_image, out_mem);
+#endif
+
 	VkResult ret = VK_SUCCESS;
 
 	// This is the format we allocate the image in, can be changed further down.
@@ -1228,7 +1440,6 @@ vk_create_image_from_native(struct vk_bundle *vk,
 	} else if ((handle_type & (VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_BIT |
 	                           VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_KMT_BIT |
 	                           VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT)) != 0) {
-
 		/*
 		 * For VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_KMT_BIT and friends,
 		 * the size must be queried by the implementation (See VkMemoryAllocateInfo manual page)
@@ -1513,8 +1724,8 @@ vk_create_view_usage(struct vk_bundle *vk,
 	VkBaseInStructure *next_chain = NULL;
 
 	/*
-	 * @todo Handle Vulkan 1.0 instance without VK_KHR_maintenance2 on GPUs that don't support srgb with storage
-	 * usage.
+	 * @todo Handle Vulkan 1.0 instance without VK_KHR_maintenance2 on GPUs that don't support srgb with
+	 * storage usage.
 	 */
 #ifdef VK_KHR_maintenance2
 	VkImageViewUsageCreateInfo image_view_usage_create_info = {
@@ -1527,7 +1738,8 @@ vk_create_view_usage(struct vk_bundle *vk,
 		CHAIN(image_view_usage_create_info, next_chain);
 	} else {
 		VK_WARN(vk,
-		        "Using Vulkan 1.0 instance without VK_KHR_maintenance2 support, can't use usage image view.");
+		        "Using Vulkan 1.0 instance without VK_KHR_maintenance2 support, can't use usage image "
+		        "view.");
 	}
 #endif
 
