@@ -400,6 +400,7 @@ public:
 				    "right";
 			}
 			break;
+		case XRT_DEVICE_PSSENSE:
 		case XRT_DEVICE_TOUCH_CONTROLLER:
 			if (hand == XRT_HAND_LEFT) {
 				m_render_model = "oculus_cv1_controller_left";
@@ -787,7 +788,8 @@ public:
 		}
 
 		ovrd_log("Using input profile %s\n", m_input_profile.c_str());
-		ovrd_log("Using render model%s\n", m_render_model);
+		ovrd_log("Using render model %s\n", m_render_model);
+		ovrd_log("Using controller type %s\n", m_controller_type);
 		vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_InputProfilePath_String, m_input_profile.c_str());
 		vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_RenderModelName_String, m_render_model);
 		vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_ModelNumber_String, m_xdev->str);
@@ -863,6 +865,8 @@ public:
 			grip_name = XRT_INPUT_INDEX_GRIP_POSE;
 		} else if (m_xdev->name == XRT_DEVICE_PSMV) {
 			grip_name = XRT_INPUT_PSMV_GRIP_POSE;
+		} else if (m_xdev->name == XRT_DEVICE_PSSENSE) {
+			grip_name = XRT_INPUT_PSSENSE_GRIP_POSE;
 		} else if (m_xdev->name == XRT_DEVICE_DAYDREAM) {
 			grip_name = XRT_INPUT_DAYDREAM_POSE;
 		} else if (m_xdev->name == XRT_DEVICE_HYDRA) {
@@ -1625,11 +1629,12 @@ CServerDriver_Monado::RunFrame()
 			ovrd_log("Device interaction started %d\n", event.trackedDeviceIndex);
 			break;
 		case vr::VREvent_IpdChanged: ovrd_log("ipd changed to %fm\n", event.data.ipd.ipdMeters); break;
-		// This event currently spams the console, so is currently commented out. see
-		// https://github.com/ValveSoftware/SteamVR-for-Linux/issues/307
-		// case vr::VREvent_ActionBindingReloaded: ovrd_log("action binding reloaded\n"); break;
 		case vr::VREvent_StatusUpdate: ovrd_log("EVRState: %d\n", event.data.status.statusState); break;
 
+		// This event currently spams the console, so is currently commented out. see
+		// https://github.com/ValveSoftware/SteamVR-for-Linux/issues/307
+		case vr::VREvent_ActionBindingReloaded:
+			// ovrd_log("Process %d reloaded bindings\n", event.data.process.pid);
 		case vr::VREvent_TrackedDeviceRoleChanged:
 			// device roles are for legacy input
 		case vr::VREvent_ChaperoneUniverseHasChanged:

@@ -694,6 +694,17 @@
 
 
 /*
+ * XR_MNDX_pssense_controller
+ */
+#if defined(XR_MNDX_pssense_controller) && defined(XRT_FEATURE_OPENXR_INTERACTION_MNDX)
+#define OXR_HAVE_MNDX_pssense_controller
+#define OXR_EXTENSION_SUPPORT_MNDX_pssense_controller(_) _(MNDX_pssense_controller, MNDX_PSSENSE_CONTROLLER)
+#else
+#define OXR_EXTENSION_SUPPORT_MNDX_pssense_controller(_)
+#endif
+
+
+/*
  * XR_MNDX_egl_enable
  */
 #if defined(XR_MNDX_egl_enable) && defined(XR_USE_PLATFORM_EGL) && defined(XR_USE_GRAPHICS_API_OPENGL)
@@ -830,6 +841,7 @@
     OXR_EXTENSION_SUPPORT_HTC_vive_cosmos_controller_interaction(_) \
     OXR_EXTENSION_SUPPORT_HTC_vive_focus3_controller_interaction(_) \
     OXR_EXTENSION_SUPPORT_MNDX_ball_on_a_stick_controller(_) \
+    OXR_EXTENSION_SUPPORT_MNDX_pssense_controller(_) \
     OXR_EXTENSION_SUPPORT_MNDX_egl_enable(_) \
     OXR_EXTENSION_SUPPORT_MNDX_force_feedback_curl(_) \
     OXR_EXTENSION_SUPPORT_MNDX_hydra(_) \
