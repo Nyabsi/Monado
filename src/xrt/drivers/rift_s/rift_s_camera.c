@@ -268,6 +268,7 @@ rift_s_camera_destroy(struct rift_s_camera *cam)
 {
 	u_var_remove_root(cam);
 	os_mutex_destroy(&cam->lock);
+	free(cam->aeg);
 	free(cam);
 }
 

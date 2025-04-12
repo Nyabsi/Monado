@@ -668,7 +668,6 @@ wmr_run_thread(void *ptr)
 	u_linux_try_to_set_realtime_priority_on_thread(wh->log_level, "WMR: USB-HMD");
 #endif
 
-
 	os_thread_helper_lock(&wh->oth);
 	while (os_thread_helper_is_running_locked(&wh->oth)) {
 		os_thread_helper_unlock(&wh->oth);
@@ -1201,9 +1200,6 @@ wmr_hmd_destroy(struct xrt_device *xdev)
 
 	struct wmr_hmd *wh = wmr_hmd(xdev);
 
-	// Destroy the thread object.
-	os_thread_helper_destroy(&wh->oth);
-
 	// Disconnect tunnelled controllers
 	os_mutex_lock(&wh->controller_status_lock);
 	if (wh->controller[0] != NULL) {
@@ -1236,6 +1232,8 @@ wmr_hmd_destroy(struct xrt_device *xdev)
 
 	// Destroy SLAM source and tracker
 	xrt_frame_context_destroy_nodes(&wh->tracking.xfctx);
+
+	os_thread_helper_destroy(&wh->oth);
 
 	// Destroy the fusion.
 	m_imu_3dof_close(&wh->fusion.i3dof);
