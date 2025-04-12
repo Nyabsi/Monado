@@ -192,14 +192,16 @@ create_image(struct vk_bundle *vk, const struct xrt_swapchain_create_info *info,
 
 		// https://www.khronos.org/registry/vulkan/specs/1.0/html/vkspec.html#VUID-VkImageViewCreateInfo-image-01019
 		image_create_flags |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
-
-		// https://www.khronos.org/registry/vulkan/specs/1.3-extensions/man/html/VkImageCreateInfo.html#VUID-VkImageCreateInfo-pNext-02396
-		format_android.externalFormat = 0;
-		assert(a_buffer_format_props.format != VK_FORMAT_UNDEFINED); // Make sure there is a Vulkan format.
-		assert(format_android.externalFormat == 0);
+		has_mutable_usage = true;
 
 		add_format_non_dup(&flh, VK_FORMAT_R8G8B8A8_UNORM);
 		add_format_non_dup(&flh, VK_FORMAT_R8G8B8A8_SRGB);
+	}
+
+	// https://www.khronos.org/registry/vulkan/specs/1.3-extensions/man/html/VkImageCreateInfo.html#VUID-VkImageCreateInfo-pNext-02396
+	if (has_mutable_usage) {
+		format_android.externalFormat = 0;
+		assert(a_buffer_format_props.format != VK_FORMAT_UNDEFINED); // Make sure there is a Vulkan format.
 	}
 
 	if (vk_csci_is_format_supported(vk, image_format, info->bits)) {
