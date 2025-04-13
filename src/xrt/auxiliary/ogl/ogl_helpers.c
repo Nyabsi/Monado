@@ -102,8 +102,7 @@ ogl_import_from_native(struct xrt_image_native *natives,
 	// Function is disabled for AHardwareBuffer, glImportMemoryFdEXT requires an actual FD and requires more work
 	// to handle AHardwareBuffer.
 	return false;
-#endif
-
+#else
 	// Setup fields.
 	results->width = info->width;
 	results->height = info->height;
@@ -134,12 +133,14 @@ ogl_import_from_native(struct xrt_image_native *natives,
 		    natives[i].size,                 //
 		    GL_HANDLE_TYPE_OPAQUE_WIN32_EXT, //
 		    (GLint)handle);                  //
-#else
+#elif defined(XRT_GRAPHICS_BUFFER_HANDLE_IS_FD)
 		glImportMemoryFdEXT(              //
 		    results->memories[i],         //
 		    natives[i].size,              //
 		    GL_HANDLE_TYPE_OPAQUE_FD_EXT, //
 		    (GLint)handle);               //
+#else
+#error "Need port!"
 #endif
 		CHECK_GL();
 
@@ -167,4 +168,5 @@ ogl_import_from_native(struct xrt_image_native *natives,
 	}
 
 	return true;
+#endif // !defined(XRT_OS_ANDROID_USE_AHB)
 }
