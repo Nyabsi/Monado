@@ -2067,17 +2067,13 @@ ipc_handle_device_compute_distortion(volatile struct ipc_client_state *ics,
                                      uint32_t view,
                                      float u,
                                      float v,
-                                     bool *out_ret,
                                      struct xrt_uv_triplet *out_triplet)
 {
 	// To make the code a bit more readable.
 	uint32_t device_id = id;
 	struct xrt_device *xdev = get_xdev(ics, device_id);
 
-	bool ret = xrt_device_compute_distortion(xdev, view, u, v, out_triplet);
-	*out_ret = ret;
-
-	return XRT_SUCCESS;
+	return xrt_device_compute_distortion(xdev, view, u, v, out_triplet);
 }
 
 xrt_result_t

@@ -969,13 +969,14 @@ vive_device_setup_ui(struct vive_device *d)
 	u_var_add_ro_text(d, d->gui.hand_status, "Tracker status");
 }
 
-static bool
+static xrt_result_t
 compute_distortion(struct xrt_device *xdev, uint32_t view, float u, float v, struct xrt_uv_triplet *result)
 {
 	XRT_TRACE_MARKER();
 
 	struct vive_device *d = vive_device(xdev);
 	bool status = u_compute_distortion_vive(&d->config.distortion.values[view], u, v, result);
+	assert(status);
 
 	if (d->config.variant == VIVE_VARIANT_PRO2) {
 		// Flip Y coordinates
@@ -983,7 +984,7 @@ compute_distortion(struct xrt_device *xdev, uint32_t view, float u, float v, str
 		result->g.y = 1.0f - result->g.y;
 		result->b.y = 1.0f - result->b.y;
 	}
-	return status;
+	return XRT_SUCCESS;
 }
 
 void

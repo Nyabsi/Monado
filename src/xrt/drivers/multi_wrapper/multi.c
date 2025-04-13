@@ -16,6 +16,7 @@
 
 #include "multi.h"
 
+#include <assert.h>
 
 DEBUG_GET_ONCE_LOG_OPTION(multi_log, "MULTI_LOG", U_LOGGING_WARN)
 
@@ -209,12 +210,14 @@ get_view_poses(struct xrt_device *xdev,
 	xrt_device_get_tracked_pose(xdev, XRT_INPUT_GENERIC_HEAD_POSE, at_timestamp_ns, out_head_relation);
 }
 
-static bool
+static xrt_result_t
 compute_distortion(struct xrt_device *xdev, uint32_t view, float u, float v, struct xrt_uv_triplet *result)
 {
 	struct multi_device *d = (struct multi_device *)xdev;
 	struct xrt_device *target = d->tracking_override.target;
-	return target->compute_distortion(target, view, u, v, result);
+	bool res = target->compute_distortion(target, view, u, v, result);
+	assert(res);
+	return XRT_SUCCESS;
 }
 
 static xrt_result_t

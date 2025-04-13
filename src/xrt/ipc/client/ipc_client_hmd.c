@@ -233,25 +233,21 @@ ipc_client_hmd_get_face_tracking(struct xrt_device *xdev,
 	IPC_CHK_ALWAYS_RET(icd->ipc_c, xret, "ipc_call_device_get_face_tracking");
 }
 
-static bool
+static xrt_result_t
 ipc_client_hmd_compute_distortion(
     struct xrt_device *xdev, uint32_t view, float u, float v, struct xrt_uv_triplet *out_result)
 {
 	ipc_client_hmd_t *ich = ipc_client_hmd(xdev);
 	xrt_result_t xret;
 
-	bool ret;
 	xret = ipc_call_device_compute_distortion( //
 	    ich->ipc_c,                            //
 	    ich->device_id,                        //
 	    view,                                  //
 	    u,                                     //
 	    v,                                     //
-	    &ret,                                  //
 	    out_result);                           //
-	IPC_CHK_WITH_RET(ich->ipc_c, xret, "ipc_call_device_compute_distortion", false);
-
-	return ret;
+	IPC_CHK_ALWAYS_RET(ich->ipc_c, xret, "ipc_call_device_compute_distortion");
 }
 
 static bool

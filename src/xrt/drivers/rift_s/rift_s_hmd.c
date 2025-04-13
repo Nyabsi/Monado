@@ -151,11 +151,14 @@ rift_s_hmd_handle_report(struct rift_s_hmd *hmd, timepoint_ns local_ts, rift_s_h
 	}
 }
 
-static bool
+static xrt_result_t
 rift_s_compute_distortion(struct xrt_device *xdev, uint32_t view, float u, float v, struct xrt_uv_triplet *result)
 {
 	struct rift_s_hmd *hmd = (struct rift_s_hmd *)(xdev);
-	return u_compute_distortion_panotools(&hmd->distortion_vals[view], u, v, result);
+	bool res = u_compute_distortion_panotools(&hmd->distortion_vals[view], u, v, result);
+	assert(res);
+
+	return XRT_SUCCESS;
 }
 
 #if 0
