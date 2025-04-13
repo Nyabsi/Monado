@@ -180,13 +180,13 @@ ipc_client_device_get_view_poses(struct xrt_device *xdev,
 	assert(false);
 }
 
-static void
+static xrt_result_t
 ipc_client_device_set_output(struct xrt_device *xdev, enum xrt_output_name name, const union xrt_output_value *value)
 {
 	ipc_client_device_t *icd = ipc_client_device(xdev);
 
 	xrt_result_t xret = ipc_call_device_set_output(icd->ipc_c, icd->device_id, name, value);
-	IPC_CHK_ONLY_PRINT(icd->ipc_c, xret, "ipc_call_device_set_output");
+	IPC_CHK_ALWAYS_RET(icd->ipc_c, xret, "ipc_call_device_set_output");
 }
 
 static xrt_result_t

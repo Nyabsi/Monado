@@ -180,12 +180,12 @@ get_hand_tracking(struct xrt_device *xdev,
 	}
 }
 
-static void
+static xrt_result_t
 set_output(struct xrt_device *xdev, enum xrt_output_name name, const union xrt_output_value *value)
 {
 	struct multi_device *d = (struct multi_device *)xdev;
 	struct xrt_device *target = d->tracking_override.target;
-	xrt_device_set_output(target, name, value);
+	return xrt_device_set_output(target, name, value);
 }
 
 static void

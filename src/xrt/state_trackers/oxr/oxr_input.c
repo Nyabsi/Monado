@@ -896,7 +896,13 @@ oxr_action_cache_stop_output(struct oxr_logger *log, struct oxr_session *sess, s
 		struct oxr_action_output *output = &cache->outputs[i];
 		struct xrt_device *xdev = output->xdev;
 
-		xrt_device_set_output(xdev, output->name, &value);
+		xrt_result_t xret = xrt_device_set_output(xdev, output->name, &value);
+		if (xret != XRT_SUCCESS) {
+			struct oxr_sink_logger slog = {0};
+			oxr_slog(&slog, "Failed to stop output ");
+			u_pp_xrt_output_name(oxr_slog_dg(&slog), output->name);
+			oxr_log_slog(log, &slog);
+		}
 	}
 }
 
@@ -2156,7 +2162,8 @@ oxr_action_get_pose(struct oxr_logger *log,
  */
 
 static void
-set_action_output_vibration(struct oxr_session *sess,
+set_action_output_vibration(struct oxr_logger *log,
+                            struct oxr_session *sess,
                             struct oxr_action_cache *cache,
                             int64_t stop,
                             const XrHapticVibration *data)
@@ -2172,7 +2179,13 @@ set_action_output_vibration(struct oxr_session *sess,
 		struct oxr_action_output *output = &cache->outputs[i];
 		struct xrt_device *xdev = output->xdev;
 
-		xrt_device_set_output(xdev, output->name, &value);
+		xrt_result_t xret = xrt_device_set_output(xdev, output->name, &value);
+		if (xret != XRT_SUCCESS) {
+			struct oxr_sink_logger slog = {0};
+			oxr_slog(&slog, "Failed to set output vibration ");
+			u_pp_xrt_output_name(oxr_slog_dg(&slog), output->name);
+			oxr_log_slog(log, &slog);
+		}
 	}
 }
 
@@ -2206,7 +2219,7 @@ oxr_action_apply_haptic_feedback(struct oxr_logger *log,
 
 #define SET_OUT_VIBRATION(X)                                                                                           \
 	if (is_focused && act_attached->X.current.active && (subaction_paths.X || subaction_paths.any)) {              \
-		set_action_output_vibration(sess, &act_attached->X, stop_ns, data);                                    \
+		set_action_output_vibration(log, sess, &act_attached->X, stop_ns, data);                               \
 	}
 
 	OXR_FOR_EACH_SUBACTION_PATH(SET_OUT_VIBRATION)

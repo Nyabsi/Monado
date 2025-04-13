@@ -326,7 +326,7 @@ oh_device_update_inputs(struct xrt_device *xdev)
 	return XRT_SUCCESS;
 }
 
-static void
+static xrt_result_t
 oh_device_set_output(struct xrt_device *xdev, enum xrt_output_name name, const union xrt_output_value *value)
 {
 	struct oh_device *ohd = oh_device(xdev);
@@ -348,6 +348,7 @@ oh_device_set_output(struct xrt_device *xdev, enum xrt_output_name name, const u
 	// There is no official OpenHMD Haptic API.
 	(void)ohd;
 #endif
+	return XRT_SUCCESS;
 }
 
 static bool

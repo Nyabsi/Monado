@@ -186,9 +186,9 @@ ControllerDevice::ControllerDevice(vr::PropertyContainerHandle_t handle, const D
 	this->container_handle = handle;
 
 #define SETUP_MEMBER_FUNC(name) this->xrt_device::name = &device_bouncer<ControllerDevice, &ControllerDevice::name>
-	SETUP_MEMBER_FUNC(set_output);
 	SETUP_MEMBER_FUNC(get_hand_tracking);
 #undef SETUP_MEMBER_FUNC
+	this->xrt_device::set_output = &device_bouncer<ControllerDevice, &ControllerDevice::set_output, xrt_result_t>;
 }
 
 Device::~Device()
@@ -459,13 +459,13 @@ ControllerDevice::get_tracked_pose(xrt_input_name name, uint64_t at_timestamp_ns
 	return XRT_SUCCESS;
 }
 
-void
+xrt_result_t
 ControllerDevice::set_output(xrt_output_name name, const xrt_output_value *value)
 
 {
 	const auto &vib = value->vibration;
 	if (vib.amplitude == 0.0)
-		return;
+		return XRT_SUCCESS;
 	vr::VREvent_HapticVibration_t event;
 	event.containerHandle = container_handle;
 	event.componentHandle = haptic_handle;
@@ -476,6 +476,7 @@ ControllerDevice::set_output(xrt_output_name name, const xrt_output_value *value
 	event.fAmplitude = vib.amplitude;
 
 	ctx->add_haptic_event(event);
+	return XRT_SUCCESS;
 }
 
 void
