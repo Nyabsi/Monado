@@ -1181,7 +1181,7 @@ vk_create_device(struct vk_bundle *vk,
 	// If we don't have global priority, only allow medium priority queues.
 	if (!vk->has_EXT_global_priority && //
 	    !vk->has_KHR_global_priority && //
-	    global_priority != VK_QUEUE_GLOBAL_PRIORITY_MEDIUM_EXT) {
+	    global_priority > VK_QUEUE_GLOBAL_PRIORITY_MEDIUM_EXT) {
 		return VK_ERROR_NOT_PERMITTED_EXT;
 	}
 
@@ -1235,8 +1235,9 @@ vk_create_device(struct vk_bundle *vk,
 	              "Vulkan structs doesn't have the same structure ID!");
 #endif
 
-	if (vk->has_EXT_global_priority || vk->has_KHR_global_priority) {
+	if ((vk->has_EXT_global_priority || vk->has_KHR_global_priority) && global_priority != (0)) {
 		// This is okay, see static_assert above.
+		// Extension was promoted unmodified.
 		priority_info.pNext = queue_create_info[0].pNext;
 		queue_create_info[0].pNext = (void *)&priority_info;
 	}

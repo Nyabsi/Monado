@@ -260,16 +260,18 @@ create_device(struct vk_bundle *vk, const struct comp_vulkan_arguments *vk_args)
 {
 	VkResult ret;
 
-	const char *prio_strs[3] = {
+	const char *prio_strs[4] = {
 	    "QUEUE_GLOBAL_PRIORITY_REALTIME",
 	    "QUEUE_GLOBAL_PRIORITY_HIGH",
 	    "QUEUE_GLOBAL_PRIORITY_MEDIUM",
+	    "none",
 	};
 
-	VkQueueGlobalPriorityEXT prios[3] = {
+	VkQueueGlobalPriorityEXT prios[4] = {
 	    VK_QUEUE_GLOBAL_PRIORITY_REALTIME_EXT, // This is the one we really want.
 	    VK_QUEUE_GLOBAL_PRIORITY_HIGH_EXT,     // Probably not as good but something.
 	    VK_QUEUE_GLOBAL_PRIORITY_MEDIUM_EXT,   // Default fallback.
+	    (VkQueueGlobalPriorityEXT)0,           // Sentinel meaning "do not even chain the struct"
 	};
 
 	const bool only_compute_queue = vk_args->only_compute_queue;
