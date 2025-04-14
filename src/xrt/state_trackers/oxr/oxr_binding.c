@@ -195,11 +195,11 @@ interaction_profile_find_or_create_in_instance(struct oxr_logger *log,
 static void
 reset_binding_keys(struct oxr_binding *binding)
 {
-	free(binding->keys);
+	free(binding->act_keys);
 	free(binding->preferred_binding_path_index);
-	binding->keys = NULL;
+	binding->act_keys = NULL;
 	binding->preferred_binding_path_index = NULL;
-	binding->key_count = 0;
+	binding->act_key_count = 0;
 }
 
 static void
@@ -210,11 +210,85 @@ reset_all_keys(struct oxr_binding *bindings, size_t binding_count)
 	}
 }
 
-static void
-add_key_to_matching_bindings(struct oxr_binding *bindings, size_t binding_count, XrPath path, uint32_t key)
+static bool
+ends_with(const char *str, const char *suffix)
 {
-	for (size_t x = 0; x < binding_count; x++) {
-		struct oxr_binding *b = &bindings[x];
+	size_t len = strlen(str);
+	size_t suffix_len = strlen(suffix);
+
+	return (len >= suffix_len) && (0 == strcmp(str + (len - suffix_len), suffix));
+}
+
+#define MAX_COMPONENT_CANDIDATES 5
+static bool
+add_by_component(struct oxr_logger *log,
+                 struct oxr_instance *inst,
+                 struct oxr_binding *bindings,
+                 size_t binding_count,
+                 XrPath path,
+                 struct oxr_action *act,
+                 const char *components[MAX_COMPONENT_CANDIDATES],
+                 size_t component_count)
+{
+	for (uint32_t component_index = 0; component_index < component_count; component_index++) {
+		// once we found everything for a component like click we don't want to keep going to add to a component
+		// like /value
+		// component is the outer loop so that we finish everything for a component in one go.
+		bool found_all_for_component = false;
+
+		for (size_t i = 0; i < binding_count; i++) {
+			struct oxr_binding *b = &bindings[i];
+
+			bool path_found = false;
+			// search for path and component together and only add to the first found binding that has both
+			bool component_found = false;
+
+			uint32_t preferred_path_index;
+			for (uint32_t y = 0; y < b->path_count; y++) {
+				if (b->paths[y] == path) {
+					path_found = true;
+					// we preserve the info which path the app selected instead of pretending it
+					// selected /click, /value, etc. if it did not
+					preferred_path_index = y;
+				}
+
+				const char *str;
+				size_t len;
+				oxr_path_get_string(log, inst, b->paths[y], &str, &len);
+				if (ends_with(str, components[component_index])) {
+					component_found = true;
+				}
+			}
+
+
+			if (!(path_found && component_found)) {
+				continue;
+			}
+
+			U_ARRAY_REALLOC_OR_FREE(b->act_keys, uint32_t, (b->act_key_count + 1));
+			U_ARRAY_REALLOC_OR_FREE(b->preferred_binding_path_index, uint32_t, (b->act_key_count + 1));
+			b->preferred_binding_path_index[b->act_key_count] = preferred_path_index;
+			b->act_keys[b->act_key_count++] = act->act_key;
+			found_all_for_component = true;
+		}
+
+		if (found_all_for_component) {
+			return true;
+		}
+	}
+	return true;
+}
+
+static bool
+add_direct(struct oxr_logger *log,
+           struct oxr_instance *inst,
+           struct oxr_binding *bindings,
+           size_t binding_count,
+           XrPath path,
+           struct oxr_action *act)
+{
+	for (size_t i = 0; i < binding_count; i++) {
+		struct oxr_binding *b = &bindings[i];
 
 		bool found = false;
 		uint32_t preferred_path_index;
@@ -230,10 +304,39 @@ add_key_to_matching_bindings(struct oxr_binding *bindings, size_t binding_count,
 			continue;
 		}
 
-		U_ARRAY_REALLOC_OR_FREE(b->keys, uint32_t, (b->key_count + 1));
-		U_ARRAY_REALLOC_OR_FREE(b->preferred_binding_path_index, uint32_t, (b->key_count + 1));
-		b->preferred_binding_path_index[b->key_count] = preferred_path_index;
-		b->keys[b->key_count++] = key;
+		U_ARRAY_REALLOC_OR_FREE(b->act_keys, uint32_t, (b->act_key_count + 1));
+		U_ARRAY_REALLOC_OR_FREE(b->preferred_binding_path_index, uint32_t, (b->act_key_count + 1));
+		b->preferred_binding_path_index[b->act_key_count] = preferred_path_index;
+		b->act_keys[b->act_key_count++] = act->act_key;
+	}
+
+	return true;
+}
+
+static void
+add_act_key_to_matching_bindings(struct oxr_logger *log,
+                                 struct oxr_instance *inst,
+                                 struct oxr_binding *bindings,
+                                 size_t binding_count,
+                                 XrPath path,
+                                 struct oxr_action *act)
+{
+	XrActionType xr_act_type = act->data->action_type;
+
+	const char *str;
+	size_t len;
+	oxr_path_get_string(log, inst, path, &str, &len);
+
+	// check if we need to select a child
+	if (xr_act_type == XR_ACTION_TYPE_BOOLEAN_INPUT && !ends_with(str, "/click") && !ends_with(str, "/touch")) {
+		const char *components[MAX_COMPONENT_CANDIDATES] = {"click", "value"};
+		add_by_component(log, inst, bindings, binding_count, path, act, components, 2);
+	} else if (xr_act_type == XR_ACTION_TYPE_FLOAT_INPUT && !ends_with(str, "/value") &&
+	           !ends_with(str, "/click")) {
+		const char *components[MAX_COMPONENT_CANDIDATES] = {"value", "click"};
+		add_by_component(log, inst, bindings, binding_count, path, act, components, 2);
+	} else {
+		add_direct(log, inst, bindings, binding_count, path, act);
 	}
 }
 
@@ -397,14 +500,14 @@ oxr_find_profile_for_device(struct oxr_logger *log,
 }
 
 void
-oxr_binding_find_bindings_from_key(struct oxr_logger *log,
-                                   struct oxr_interaction_profile *p,
-                                   uint32_t key,
-                                   size_t max_bounding_count,
-                                   struct oxr_binding **bindings,
-                                   size_t *out_binding_count)
+oxr_binding_find_bindings_from_act_key(struct oxr_logger *log,
+                                       struct oxr_interaction_profile *profile,
+                                       uint32_t key,
+                                       size_t max_binding_count,
+                                       struct oxr_binding **out_bindings,
+                                       size_t *out_binding_count)
 {
-	if (p == NULL) {
+	if (profile == NULL) {
 		*out_binding_count = 0;
 		return;
 	}
@@ -416,24 +519,24 @@ oxr_binding_find_bindings_from_key(struct oxr_logger *log,
 	 * Loop over all app provided bindings for this profile
 	 * and return those matching the action.
 	 */
-	for (size_t y = 0; y < p->binding_count; y++) {
-		struct oxr_binding *b = &p->bindings[y];
+	for (size_t binding_index = 0; binding_index < profile->binding_count; binding_index++) {
+		struct oxr_binding *profile_binding = &profile->bindings[binding_index];
 
-		for (size_t z = 0; z < b->key_count; z++) {
-			if (b->keys[z] == key) {
-				bindings[binding_count++] = b;
+		for (size_t key_index = 0; key_index < profile_binding->act_key_count; key_index++) {
+			if (profile_binding->act_keys[key_index] == key) {
+				out_bindings[binding_count++] = profile_binding;
 				break;
 			}
 		}
 
 		//! @todo Should return total count instead of fixed max.
-		if (binding_count >= max_bounding_count) {
+		if (binding_count >= max_binding_count) {
 			oxr_warn(log, "Internal limit reached, action has too many bindings!");
 			break;
 		}
 	}
 
-	assert(binding_count <= max_bounding_count);
+	assert(binding_count <= max_binding_count);
 
 	*out_binding_count = binding_count;
 }
@@ -470,21 +573,22 @@ oxr_clone_profile(const struct oxr_interaction_profile *src_profile)
 				       sizeof(XrPath) * src_binding->path_count);
 			}
 
-			dst_binding->key_count = 0;
-			dst_binding->keys = NULL;
+			dst_binding->act_key_count = 0;
+			dst_binding->act_keys = NULL;
 			dst_binding->preferred_binding_path_index = NULL;
-			if (src_binding->keys && src_binding->key_count > 0) {
-				dst_binding->key_count = src_binding->key_count;
-				dst_binding->keys = U_TYPED_ARRAY_CALLOC(uint32_t, src_binding->key_count);
-				memcpy(dst_binding->keys, src_binding->keys, sizeof(uint32_t) * src_binding->key_count);
+			if (src_binding->act_keys && src_binding->act_key_count > 0) {
+				dst_binding->act_key_count = src_binding->act_key_count;
+				dst_binding->act_keys = U_TYPED_ARRAY_CALLOC(uint32_t, src_binding->act_key_count);
+				memcpy(dst_binding->act_keys, src_binding->act_keys,
+				       sizeof(uint32_t) * src_binding->act_key_count);
 			}
-			if (src_binding->preferred_binding_path_index && src_binding->key_count > 0) {
-				assert(dst_binding->key_count == src_binding->key_count);
+			if (src_binding->preferred_binding_path_index && src_binding->act_key_count > 0) {
+				assert(dst_binding->act_key_count == src_binding->act_key_count);
 				dst_binding->preferred_binding_path_index =
-				    U_TYPED_ARRAY_CALLOC(uint32_t, src_binding->key_count);
+				    U_TYPED_ARRAY_CALLOC(uint32_t, src_binding->act_key_count);
 				memcpy(dst_binding->preferred_binding_path_index,
 				       src_binding->preferred_binding_path_index,
-				       sizeof(uint32_t) * src_binding->key_count);
+				       sizeof(uint32_t) * src_binding->act_key_count);
 			}
 		}
 	}
@@ -611,7 +715,7 @@ oxr_action_suggest_interaction_profile_bindings(struct oxr_logger *log,
 		const XrActionSuggestedBinding *s = &suggestedBindings->suggestedBindings[i];
 		struct oxr_action *act = XRT_CAST_OXR_HANDLE_TO_PTR(struct oxr_action *, s->action);
 
-		add_key_to_matching_bindings(bindings, binding_count, s->binding, act->act_key);
+		add_act_key_to_matching_bindings(log, inst, bindings, binding_count, s->binding, act);
 	}
 
 out:

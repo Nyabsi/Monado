@@ -9,6 +9,7 @@
  * @ingroup oxr_main
  */
 
+#include "bindings/b_generated_bindings.h"
 #include "util/u_debug.h"
 #include "util/u_time.h"
 #include "util/u_misc.h"
@@ -654,8 +655,8 @@ static XrPath
 get_matched_xrpath(struct oxr_binding *b, const struct oxr_action_ref *act)
 {
 	XrPath preferred_path = XR_NULL_PATH;
-	for (uint32_t i = 0; i < b->key_count; i++) {
-		if (b->keys[i] == act->act_key) {
+	for (uint32_t i = 0; i < b->act_key_count; i++) {
+		if (b->act_keys[i] == act->act_key) {
 			uint32_t preferred_path_index = XR_NULL_PATH;
 			preferred_path_index = b->preferred_binding_path_index[i];
 			preferred_path = b->paths[preferred_path_index];
@@ -664,6 +665,8 @@ get_matched_xrpath(struct oxr_binding *b, const struct oxr_action_ref *act)
 	}
 	return preferred_path;
 }
+
+
 
 static void
 get_binding(struct oxr_logger *log,
@@ -734,13 +737,13 @@ get_binding(struct oxr_logger *log,
 	}
 
 	size_t binding_count = 0;
-	oxr_binding_find_bindings_from_key( //
-	    log,                            // log
-	    profile,                        // p
-	    act_ref->act_key,               // key
-	    ARRAY_SIZE(binding_points),     // max_bounding_count
-	    binding_points,                 // bindings
-	    &binding_count);                // out_binding_count
+	oxr_binding_find_bindings_from_act_key( //
+	    log,                                // log
+	    profile,                            // p
+	    act_ref->act_key,                   // key
+	    ARRAY_SIZE(binding_points),         // max_binding_count
+	    binding_points,                     // out_bindings
+	    &binding_count);                    // out_binding_count
 	if (binding_count == 0) {
 		oxr_slog(slog, "\t\t\tNo bindings!\n");
 		return;
@@ -773,7 +776,8 @@ get_binding(struct oxr_logger *log,
 
 		if (found) {
 			if (xbp == NULL) {
-				oxr_slog(slog, "\t\t\t\tBound (xdev)!\n");
+				oxr_slog(slog, "\t\t\t\tBound (xdev '%s'): %s!\n", xdev->str,
+				         xrt_input_name_string(binding_points[i]->input));
 			} else {
 				oxr_slog(slog, "\t\t\t\tBound (xbp)!\n");
 			}
@@ -1588,6 +1592,10 @@ oxr_action_bind_io(struct oxr_logger *log,
 		for (uint32_t i = 0; i < input_count; i++) {
 			// Only add the input if we can find a transform.
 
+			oxr_slog(slog, "\t\tFinding transforms for '%s' to action '%s' of type '%s'\n",
+			         xrt_input_name_string(inputs[i].input->name), act_ref->name,
+			         xr_action_type_to_str(act_ref->action_type));
+
 			enum oxr_dpad_region dpad_region;
 			if (get_dpad_region_from_path(log, sess->sys->inst, inputs[i].bound_path, &dpad_region)) {
 				struct oxr_dpad_entry *entry = oxr_dpad_state_get(&profile->dpad_state, act_set_key);
@@ -1623,10 +1631,11 @@ oxr_action_bind_io(struct oxr_logger *log,
 		} else {
 			oxr_slog(slog, "\t\tBound to:\n");
 			for (uint32_t i = 0; i < input_count; i++) {
-				enum xrt_input_type t = XRT_GET_INPUT_TYPE(inputs[i].input->name);
-				bool active = inputs[i].input->active;
-				oxr_slog(slog, "\t\t\t'%s' on '%s' (%s)\n", xrt_input_type_to_str(t),
-				         inputs[i].xdev->str, active ? "active" : "inactive");
+				struct xrt_input *input = inputs[i].input;
+				enum xrt_input_type t = XRT_GET_INPUT_TYPE(input->name);
+				bool active = input->active;
+				oxr_slog(slog, "\t\t\t'%s' ('%s') on '%s' (%s)\n", xrt_input_name_string(input->name),
+				         xrt_input_type_to_str(t), inputs[i].xdev->str, active ? "active" : "inactive");
 			}
 		}
 
