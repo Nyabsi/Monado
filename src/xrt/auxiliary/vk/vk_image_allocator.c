@@ -16,6 +16,7 @@
 #include <vulkan/vulkan_core.h>
 #include <xrt/xrt_handles.h>
 
+#include <math.h>
 #ifdef XRT_OS_LINUX
 #include <unistd.h>
 #endif
@@ -109,42 +110,6 @@ create_image(struct vk_bundle *vk, const struct xrt_swapchain_create_info *info,
 	VkImage image = VK_NULL_HANDLE;
 	VkResult ret = VK_SUCCESS;
 
-#if defined(XRT_GRAPHICS_BUFFER_HANDLE_IS_AHARDWAREBUFFER)
-	/*
-	 * Get AHardwareBuffer props
-	 */
-
-	AHardwareBuffer *a_buffer = NULL;
-
-	xrt_result_t xret = ahardwarebuffer_image_allocate(info, &a_buffer);
-	if (xret != XRT_SUCCESS) {
-		U_LOG_E("Failed to ahardwarebuffer_image_allocate.");
-		// ahardwarebuffer_image_allocate only returns XRT_ERROR_ALLOCATION
-		return VK_ERROR_OUT_OF_DEVICE_MEMORY;
-	}
-
-	// Out->pNext
-	VkAndroidHardwareBufferFormatPropertiesANDROID a_buffer_format_props = {
-	    .sType = VK_STRUCTURE_TYPE_ANDROID_HARDWARE_BUFFER_FORMAT_PROPERTIES_ANDROID,
-	};
-
-	// Out
-	VkAndroidHardwareBufferPropertiesANDROID a_buffer_props = {
-	    .sType = VK_STRUCTURE_TYPE_ANDROID_HARDWARE_BUFFER_PROPERTIES_ANDROID,
-	    .pNext = &a_buffer_format_props,
-	};
-
-	ret = vk->vkGetAndroidHardwareBufferPropertiesANDROID(vk->device, a_buffer, &a_buffer_props);
-	if (ret != VK_SUCCESS) {
-		U_LOG_E("vkGetAndroidHardwareBufferPropertiesANDROID: %s", vk_result_string(ret));
-		return ret;
-	}
-
-	//! @todo Actually use this buffer for something other then getting the format.
-	// Does null-check, validity check and clears.
-	u_graphics_buffer_unref(&a_buffer);
-#endif
-
 	/*
 	 *
 	 * Start of create image call.
@@ -178,42 +143,16 @@ create_image(struct vk_bundle *vk, const struct xrt_swapchain_create_info *info,
 		add_format_non_dup(&flh, info->formats[i]);
 	}
 
-
 #if defined(XRT_GRAPHICS_BUFFER_HANDLE_IS_AHARDWAREBUFFER)
-	VkExternalFormatANDROID format_android = {
-	    .sType = VK_STRUCTURE_TYPE_EXTERNAL_FORMAT_ANDROID,
-	    .externalFormat = a_buffer_format_props.externalFormat,
-	};
-	CHAIN(format_android);
-
 	if (image_format == VK_FORMAT_R8G8B8A8_SRGB) {
-		// Some versions of Android can't allocate native sRGB, use UNORM and correct gamma later.
+		// Android can't allocate native sRGB, use UNORM and correct gamma later.
 		image_format = VK_FORMAT_R8G8B8A8_UNORM;
 
 		// https://www.khronos.org/registry/vulkan/specs/1.0/html/vkspec.html#VUID-VkImageViewCreateInfo-image-01019
 		image_create_flags |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
 
-		// https://www.khronos.org/registry/vulkan/specs/1.3-extensions/man/html/VkImageCreateInfo.html#VUID-VkImageCreateInfo-pNext-02396
-		format_android.externalFormat = 0;
-		assert(a_buffer_format_props.format != VK_FORMAT_UNDEFINED); // Make sure there is a Vulkan format.
-		assert(format_android.externalFormat == 0);
-
 		add_format_non_dup(&flh, VK_FORMAT_R8G8B8A8_UNORM);
 		add_format_non_dup(&flh, VK_FORMAT_R8G8B8A8_SRGB);
-	}
-
-	if (vk_csci_is_format_supported(vk, image_format, info->bits)) {
-		// Format is supported, no need for VkExternalFormatANDROID
-		format_android.externalFormat = 0;
-		assert(a_buffer_format_props.format != VK_FORMAT_UNDEFINED); // Make sure there is a Vulkan format.
-	} else if (image_usage != VK_IMAGE_USAGE_SAMPLED_BIT && !vk->has_ANDROID_external_format_resolve) {
-		// VUID-VkImageCreateInfo-pNext-09457
-		VK_ERROR(
-		    vk, "VK_ANDROID_external_format_resolve not supported, only VK_IMAGE_USAGE_SAMPLED_BIT is allowed");
-		return VK_ERROR_FORMAT_NOT_SUPPORTED;
-	} else {
-		VK_ERROR(vk, "Format not supported");
-		return VK_ERROR_FORMAT_NOT_SUPPORTED;
 	}
 #endif
 
@@ -237,6 +176,17 @@ create_image(struct vk_bundle *vk, const struct xrt_swapchain_create_info *info,
 		image_create_flags |= VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
 	}
 
+	uint32_t mip_count = info->mip_count;
+#if defined(XRT_GRAPHICS_BUFFER_HANDLE_IS_AHARDWAREBUFFER)
+	// VUID-VkImageCreateInfo-pNext-02394
+	// mipLevels must either be 1 or equal to the number of levels in the complete mipmap chain
+	if (mip_count > 1) {
+		// ⌊log2(max(extent.width, extent.height, extent.depth))⌋ + 1.
+		// but depth is always 1
+		mip_count = 1 + (uint32_t)log2((info->width > info->height) ? info->width : info->height);
+	}
+#endif
+
 	VkImageCreateInfo create_info = {
 	    .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
 	    .pNext = next_chain,
@@ -244,7 +194,7 @@ create_image(struct vk_bundle *vk, const struct xrt_swapchain_create_info *info,
 	    .imageType = VK_IMAGE_TYPE_2D,
 	    .format = image_format,
 	    .extent = {.width = info->width, .height = info->height, .depth = 1},
-	    .mipLevels = info->mip_count,
+	    .mipLevels = mip_count,
 	    .arrayLayers = info->array_size * info->face_count,
 	    .samples = VK_SAMPLE_COUNT_1_BIT,
 	    .tiling = VK_IMAGE_TILING_OPTIMAL,
@@ -252,12 +202,6 @@ create_image(struct vk_bundle *vk, const struct xrt_swapchain_create_info *info,
 	    .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
 	    .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
 	};
-#if defined(XRT_GRAPHICS_BUFFER_HANDLE_IS_AHARDWAREBUFFER)
-	// VUID-VkImageCreateInfo-pNext-01974
-	if (format_android.externalFormat != 0) {
-		create_info.format = VK_FORMAT_UNDEFINED;
-	}
-#endif
 
 	ret = vk->vkCreateImage(vk->device, &create_info, NULL, &image);
 	if (ret != VK_SUCCESS) {
@@ -285,16 +229,17 @@ create_image(struct vk_bundle *vk, const struct xrt_swapchain_create_info *info,
 	};
 
 	VkMemoryRequirements *requirements;
+
 #if defined(XRT_GRAPHICS_BUFFER_HANDLE_IS_AHARDWAREBUFFER)
-	// VUID-VkImageMemoryRequirementsInfo2-image-01897
-	// VUID-VkMemoryAllocateInfo-pNext-01874
-	// Use the requirements from the VkAndroidHardwareBufferPropertiesANDROID instead of querying them
 	VkMemoryRequirements android_memory_requirements = {
+	    // VUID-VkMemoryAllocateInfo-pNext-01874
 	    .size = 0,
-	    .memoryTypeBits = a_buffer_props.memoryTypeBits,
+	    // There's no way to get memoryType since the resource was not created as an import operation,
+	    .memoryTypeBits = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 	};
 	requirements = &android_memory_requirements;
 #else
+
 	vk->vkGetImageMemoryRequirements2(vk->device, &memory_requirements_info, &memory_requirements);
 	requirements = &memory_requirements.memoryRequirements;
 #endif
