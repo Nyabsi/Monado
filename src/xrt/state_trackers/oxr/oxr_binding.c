@@ -380,6 +380,23 @@ oxr_find_profile_for_device(struct oxr_logger *log,
 		return;
 	}
 
+	// Have bindings for the dynamic role's profile been suggested?
+#define FIND_PROFILE(X)                                                                                                \
+	{                                                                                                              \
+		struct xrt_device *role_xdev = GET_XDEV_BY_ROLE(sess->sys, X);                                         \
+		if (role_xdev == xdev) {                                                                               \
+			enum xrt_device_name profile = GET_PROFILE_NAME_BY_ROLE(sess->sys, X);                         \
+			oxr_get_profile_for_device_name(log, sess, profile, out_p);                                    \
+			if (*out_p != NULL) {                                                                          \
+				return;                                                                                \
+			}                                                                                              \
+		}                                                                                                      \
+	}
+	FIND_PROFILE(left);
+	FIND_PROFILE(right);
+	FIND_PROFILE(gamepad);
+#undef FIND_PROFILE
+
 	// Have bindings for this device's interaction profile been suggested?
 	oxr_get_profile_for_device_name(log, sess, xdev->name, out_p);
 	if (*out_p != NULL) {
