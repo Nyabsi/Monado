@@ -93,6 +93,52 @@ struct gui_imgui
 };
 
 static void
+set_gl_context_version(struct u_debug_gui *p)
+{
+	if (SDL_InitSubSystem(SDL_INIT_VIDEO) < 0) {
+		U_LOG_E("SDL_InitSubSystem failed: %s", SDL_GetError());
+		return;
+	}
+
+	SDL_Window *tmp_window = SDL_CreateWindow("", 0, 0, 1, 1, SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN);
+	if (!tmp_window) {
+		U_LOG_E("Temp window creation failed: %s", SDL_GetError());
+		return;
+	}
+
+	SDL_GLContext tmp_context = SDL_GL_CreateContext(tmp_window);
+	if (!tmp_context) {
+		U_LOG_E("Temp GL context creation failed: %s", SDL_GetError());
+		SDL_DestroyWindow(tmp_window);
+		return;
+	}
+
+	if (!gladLoadGL((GLADloadfunc)SDL_GL_GetProcAddress)) {
+		U_LOG_E("GLAD initialization failed");
+		SDL_GL_DeleteContext(tmp_context);
+		SDL_DestroyWindow(tmp_window);
+		return;
+	}
+
+	const char *vendor = (const char *)glGetString(GL_VENDOR);
+	U_LOG_D("Debug UI GL Vendor: %s", vendor ? vendor : "NULL");
+	bool is_nvidia = vendor && strstr(vendor, "NVIDIA") != NULL;
+
+	SDL_GL_DeleteContext(tmp_context);
+	SDL_DestroyWindow(tmp_window);
+
+	if (is_nvidia) {
+		U_LOG_D("Debug UI setting NVIDIA GL version (4.5)");
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 5);
+	} else {
+		U_LOG_D("Debug UI setting Mesa GL version (3.3)");
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+	}
+}
+
+static void
 sdl2_window_init(struct u_debug_gui *p)
 {
 	XRT_TRACE_MARKER();
@@ -104,8 +150,7 @@ sdl2_window_init(struct u_debug_gui *p)
 	int h = 1080;
 
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, 0);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 5);
+	set_gl_context_version(p);
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 	SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
