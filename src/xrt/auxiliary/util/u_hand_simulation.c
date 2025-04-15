@@ -401,13 +401,13 @@ void u_hand_sim_simulate_for_valve_index_knuckles(const struct u_hand_tracking_c
     hand_sim_hand_init(&hand, xhand, root_pose);
 	
     // https://gitlab.freedesktop.org/monado/monado/-/merge_requests/2432
-    float superx = 0.04f;
+    float x_offset = 0.04f;
     if(hand.is_right)
-        hand.wrist_pose.pose.position.x = superx;
+        hand.wrist_pose.pose.position.x = x_offset;
     else
-        hand.wrist_pose.pose.position.x = superx * -1;
+        hand.wrist_pose.pose.position.x = -x_offset;
 
-    hand.wrist_pose.pose.position.y = 0.02f;
+    hand.wrist_pose.pose.position.y = 0.03f; // Upwards
     hand.wrist_pose.pose.position.z = 0.01f;
 
     hand.hand_size = 0.095;
