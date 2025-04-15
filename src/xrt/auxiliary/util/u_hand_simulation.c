@@ -475,7 +475,7 @@ void u_hand_sim_simulate_for_valve_index_knuckles(const struct u_hand_tracking_c
         }
     }
 
-    float interdependence = 0.15f;
+    float interdependence = 0.05f;
     for (int finger = 0; finger < 3; finger++) {
     	    float neighbor_curl = hand.finger[finger+1].rotations[0];
             float current_curl = hand.finger[finger].rotations[0];
