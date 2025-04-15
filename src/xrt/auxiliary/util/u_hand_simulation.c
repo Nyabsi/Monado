@@ -392,47 +392,105 @@ u_hand_sim_simulate(struct u_hand_sim_hand *hand_ptr, struct xrt_hand_joint_set 
 	out_set->is_active = true;
 }
 
-void
-u_hand_sim_simulate_for_valve_index_knuckles(const struct u_hand_tracking_curl_values *values,
+void u_hand_sim_simulate_for_valve_index_knuckles(const struct u_hand_tracking_curl_values *values,
                                              enum xrt_hand xhand,
                                              const struct xrt_space_relation *root_pose,
                                              struct xrt_hand_joint_set *out_set)
 {
-	struct u_hand_sim_hand hand;
+    struct u_hand_sim_hand hand;
+    hand_sim_hand_init(&hand, xhand, root_pose);
+    
+    hand.wrist_pose.pose.position.x = 0.f;
+    hand.wrist_pose.pose.position.y = 0.f;
+    hand.wrist_pose.pose.position.z = 0.f;
+    hand.hand_size = 0.095;
+    
+    float curl_values[5] = { values->thumb, values->index, values->middle, values->ring, values->little };
 
-	hand_sim_hand_init(&hand, xhand, root_pose);
-	hand.wrist_pose.pose.position.x = 0.f;
-	hand.wrist_pose.pose.position.y = 0.f;
-	hand.wrist_pose.pose.position.z = 0.f;
+    float splay_factors[5] = {0};
+    for (int i = 0; i < 5; i++) {
+        splay_factors[i] = (1.0f - curl_values[i]) * 0.75f;
+    }
 
-	hand.hand_size = 0.095;
+    float thumb_curl = curl_values[0];
+    
+    hand.thumb.metacarpal.swing.x = thumb_curl * 0.3f;
+    hand.thumb.metacarpal.swing.y = -0.2f - (thumb_curl * 0.3f);
+    hand.thumb.metacarpal.twist = thumb_curl * 0.5f;
+    
+    hand.thumb.rotations[0] = thumb_curl * -0.8f;
+    
+    hand.thumb.rotations[1] = thumb_curl * -1.2f;
+    
+    if (thumb_curl > 0.8f) {
+        float natural_limit_factor = 1.0f - ((thumb_curl - 0.8f) * 0.5f);
+        hand.thumb.rotations[1] *= natural_limit_factor;
+    }
+    
+    const float joint_ratios[4][3] = {
+        {1.0f, 1.2f, 0.8f},  // Index
+        {1.0f, 1.3f, 0.9f},  // Middle
+        {1.0f, 1.4f, 1.0f},  // Ring
+        {1.0f, 1.5f, 1.1f}   // Little
+    };
+    
+    for (int finger = 0; finger < 4; finger++) {
+        float curl = curl_values[finger + 1];
+        
+        float max_curl = 1.4f - (finger * 0.05f);
+        float natural_curl = curl * max_curl;
+        
+        float base_rotation = natural_curl * -1.0f;
+        
+        if (finger > 0) {
+            float neighbor_influence = 0.2f; 
+            float neighbor_curl = curl_values[finger];
+            
+            splay_factors[finger + 1] = splay_factors[finger + 1] * (1.0f - neighbor_influence) + 
+                                        splay_factors[finger] * neighbor_influence;
+        }
+        
+        float splay_angle = 0.0f;
+        if (finger == 0) { // Index
+            splay_angle = -0.05f + (splay_factors[finger + 1] * 0.1f);
+        } else if (finger == 3) { // Pinky
+            splay_angle = 0.08f + (splay_factors[finger + 1] * 0.12f);
+        } else { // Middle and ring
+            splay_angle = (splay_factors[finger + 1] * 0.07f);
+        }
+        
+        hand.finger[finger].proximal_swing.y = splay_angle;
+        
+        hand.finger[finger].proximal_swing.x = base_rotation * joint_ratios[finger][0];
+        hand.finger[finger].rotations[0] = base_rotation * joint_ratios[finger][1];
+        hand.finger[finger].rotations[1] = base_rotation * joint_ratios[finger][2];        
+    }
 
-	// Thumb
-	hand.thumb.metacarpal.swing.x += values->thumb * 0.08f;
-	hand.thumb.metacarpal.swing.y += -0.35f;
-	hand.thumb.metacarpal.twist = 0;
-	hand.thumb.rotations[0] += values->thumb * -1.57f;
-	hand.thumb.rotations[1] += values->thumb * -1.4f;
+    float natural_rest_curl = 0.1f;
+    for (int finger = 0; finger < 4; finger++) {
+        if (curl_values[finger + 1] < 0.2f) {
+            float rest_factor = (0.2f - curl_values[finger + 1]) / 0.2f;
+            hand.finger[finger].proximal_swing.x -= natural_rest_curl * rest_factor;
+            hand.finger[finger].rotations[0] -= natural_rest_curl * 1.2f * rest_factor; 
+        }
+    }
 
-	// Index finger - this is treated differently on Valve Knuckles controllers so the pinch gesture feels good
-	float finger_values[4] = {values->index, values->middle, values->ring, values->little};
-
-	{
-		int finger = 0;
-		float val_turn = finger_values[finger] * -1.1f;
-		hand.finger[finger].proximal_swing.x = val_turn * 1.3f;
-		hand.finger[finger].rotations[0] = val_turn;
-		hand.finger[finger].rotations[1] = val_turn;
-	}
-
-	for (int finger = 1; finger < 4; finger++) {
-		float val_turn = finger_values[finger] * -1.1f * 1.3f;
-		hand.finger[finger].proximal_swing.x = val_turn * 1.3f;
-		hand.finger[finger].rotations[0] = val_turn * 1.0f;
-		hand.finger[finger].rotations[1] = val_turn * 0.4f;
-	}
-
-	u_hand_sim_simulate(&hand, out_set);
+    float interdependence = 0.15f;
+    for (int finger = 0; finger < 3; finger++) {
+    	    float neighbor_curl = hand.finger[finger+1].rotations[0];
+            float current_curl = hand.finger[finger].rotations[0];
+            hand.finger[finger].rotations[0] = current_curl * (1.0f - interdependence) +  neighbor_curl * interdependence;
+    }
+    
+    float avg_curl = (curl_values[1] + curl_values[2] + curl_values[3] + curl_values[4]) / 4.0f;
+    if (avg_curl > 0.5f) {
+        float palm_arch = (avg_curl - 0.5f) * 0.4f;
+        for (int finger = 0; finger < 4; finger++) {
+            hand.finger[finger].proximal_swing.x -= palm_arch;
+        }
+    }
+    
+    u_hand_sim_simulate(&hand, out_set);
 }
 
 static void
