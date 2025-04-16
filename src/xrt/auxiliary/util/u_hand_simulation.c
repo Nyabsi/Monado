@@ -425,13 +425,8 @@ void u_hand_sim_simulate_for_valve_index_knuckles(const struct u_hand_tracking_c
     hand.thumb.metacarpal.swing.y = -0.2f - (thumb_curl * 0.05f);
     hand.thumb.metacarpal.twist = thumb_curl * 0.5f;
 
-    hand.thumb.rotations[0] = thumb_curl * -0.8f;
-    hand.thumb.rotations[1] = thumb_curl * -1.2f;
-
-    if (thumb_curl > 0.8f) {
-        float natural_limit_factor = 1.0f - ((thumb_curl - 0.8f) * 0.5f);
-        hand.thumb.rotations[1] *= natural_limit_factor;
-    }
+    hand.thumb.rotations[0] = thumb_curl * -1.6f;
+    hand.thumb.rotations[1] = thumb_curl * -0.8f;
     
     const float joint_ratios[4][3] = {
         {1.0f, 1.2f, 0.8f},  // Index
